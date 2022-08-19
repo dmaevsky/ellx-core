@@ -4,9 +4,6 @@
   "description": "Ellx core",
   "main": "src/index.js",
   "type": "module",
-  "engines": {
-    "node": ">=16.14.2"
-  },
   "directories": {
     "test": "tests"
   },
