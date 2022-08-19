@@ -1,0 +1,48 @@
+{
+  "name": "@ellx/core",
+  "version": "0.1.0",
+  "description": "Ellx core",
+  "main": "src/index.js",
+  "type": "module",
+  "engines": {
+    "node": ">=16.14.2"
+  },
+  "directories": {
+    "test": "tests"
+  },
+  "dependencies": {
+    "conclure": "^2",
+    "conclure-quarx": "^0.5.1",
+    "quarx": "^4",
+    "rd-parse": "^3.4.0",
+    "rd-parse-jsexpr": "^2.1.0"
+  },
+  "devDependencies": {
+    "ava": "^4.3.1",
+    "tinyx": "^2.2.0"
+  },
+  "scripts": {
+    "test": "ava -v"
+  },
+  "ava": {
+    "files": [
+      "tests/*.spec.js"
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dmaevsky/ellx-core.git"
+  },
+  "keywords": [
+    "Ellx",
+    "reactive",
+    "async",
+    "graph"
+  ],
+  "author": "Dmitry Maevsky",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/dmaevsky/ellx-core/issues"
+  },
+  "homepage": "https://github.com/dmaevsky/ellx-core#readme"
+}
