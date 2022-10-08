@@ -73,6 +73,13 @@ test('ArrayLiteral, EmptyElement, SpreadElement, and rest parameter', t => {
   t.is(f.signature(), '(a, ...z) => [...z, , a]');
 });
 
+test('ArrowFunction with destructuring', t => {
+  const evaluator = parser.parse('([{y: {z1 = 5, ...z2} = {x:6}}, z3, ...z4]) => (z1 * z2.x) * z3 * z4.length');
+  const f = evaluator();
+
+  t.is(f([{},2,null,null]), 120);
+});
+
 test('CompoundExpression', t => {
   const args = [];
   global.__ellxSpy = a => args.push(a);
