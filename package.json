@@ -9,8 +9,8 @@
   },
   "dependencies": {
     "conclure": "^2",
-    "conclure-quarx": "^0.5.1",
-    "quarx": "^4",
+    "conclure-quarx": "^0.5.2",
+    "quarx": "^4, >=4.0.1",
     "rd-parse": "^3.4.0",
     "rd-parse-jsexpr": "^2.2.0"
   },
