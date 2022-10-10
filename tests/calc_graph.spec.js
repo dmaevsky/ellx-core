@@ -18,7 +18,7 @@ test('basic graph operations', t => {
   cg.a.update('b');
 
   t.true(b instanceof Error);
-  t.is(b.message, 'Circular dependency detected');
+  t.is(b.message, '[Quarx]: Circular dependency detected: [a]:currentValue -> [b]:currentValue:cell -> [b]:currentValue -> [a]:currentValue:cell -> [a]:currentValue');
 
   cg.a.update('42');
   t.is(b, 48);

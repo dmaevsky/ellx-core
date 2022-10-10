@@ -24,7 +24,7 @@ test('reactiveCell', async t => {
     results.push(cell.get());
   });
 
-  t.true(isPromise(cell.get()));  // stale
+  t.true(isPromise(cell.get()));  // stale and unobserved
   t.is(results.length, 0);
 
   gate.set(true);
