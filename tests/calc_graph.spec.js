@@ -1,5 +1,5 @@
 import test from 'ava';
-import calcGraph from '../src/index.js';
+import { calcGraph } from '../src/index.js';
 
 let off = () => {};
 test.afterEach(off);
@@ -47,7 +47,7 @@ test('external constructors', t => {
   const cg = calcGraph({
     d: "'2021-02-17'",
     date: 'new TestDate(d)'
-  }, { TestDate: Date });
+  }, name => ({ TestDate: Date }[name]));
 
   let date;
   off = cg.date.subscribe(value => date = value);

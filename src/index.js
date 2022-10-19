@@ -1,12 +1,12 @@
 import CalcNode from './calc_node.js';
 
-export default function calcGraph(nodes, imports = {}) {
+export function calcGraph(nodes, resolve) {
   const cg = {};
-  const resolve = name => cg[name] || imports[name];
 
   for (let name in nodes) {
-    cg[name] = new CalcNode(nodes[name], resolve, { name });
+    cg[name] = new CalcNode(nodes[name], id => cg[id] || resolve(id), { name });
   }
-
   return cg;
 }
+
+export { reactiveCell } from './reactive_cell.js';

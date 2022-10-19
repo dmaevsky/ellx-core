@@ -1,6 +1,6 @@
 {
   "name": "@ellx/core",
-  "version": "0.1.0",
+  "version": "0.2.1",
   "description": "Ellx core",
   "main": "src/index.js",
   "type": "module",
@@ -8,9 +8,9 @@
     "test": "tests"
   },
   "dependencies": {
-    "conclure": "^2",
-    "conclure-quarx": "^0.5.2",
-    "quarx": "^4, >=4.0.1",
+    "conclure": "^2, >=2.1.0",
+    "conclure-quarx": "^0.5.5",
+    "quarx": "^4, >=4.1.0",
     "rd-parse": "^3.4.0",
     "rd-parse-jsexpr": "^2.2.0"
   },

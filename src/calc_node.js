@@ -8,10 +8,8 @@ export default class CalcNode {
   constructor(formula, resolve, options = {}) {
     const { name = 'CalcNode' } = options;
 
-    this.resolve = resolve;
-
     this.parser = new ProgressiveEval(identifier => {
-      const resolved = this.resolve(identifier);
+      const resolved = resolve(identifier);
       if (! (resolved instanceof CalcNode)) return resolved;
 
       const value = resolved.currentValue.get();
@@ -19,10 +17,12 @@ export default class CalcNode {
       return value;
     });
 
-    this.evaluator = observable.box(() => undefined, { name: `[${name}]:evaluator` });
+    const makeEvaluator = expr => this.parser.parse(String(expr));
+
+    const evaluator = observable.box(makeEvaluator(formula), { name: `[${name}]:evaluator` });
 
     this.currentValue = reactiveCell(() => {
-      const evaluate = this.evaluator.get();
+      const evaluate = evaluator.get();
       return evaluate();
     }, {
       name: `[${name}]:currentValue`
@@ -30,10 +30,6 @@ export default class CalcNode {
 
     Object.assign(this, fromObservable(this.currentValue, { name: `Subscribe to node: ${name}` }));
 
-    this.update(formula);
-  }
-
-  update(formula) {
-    this.evaluator.set(this.parser.parse(String(formula)));
+    this.update = expr => evaluator.set(makeEvaluator(expr));
   }
 }

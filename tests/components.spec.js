@@ -1,6 +1,6 @@
 import test from 'ava';
 import { writable } from 'tinyx';
-import calcGraph from '../src/index.js';
+import { calcGraph } from '../src/index.js';
 
 const store = writable(42);
 
@@ -8,7 +8,7 @@ test('A simple subscribable', t => {
   const cg = calcGraph({
     s: 'store',
     plus5: 's + 5'
-  }, { store });
+  }, name => ({ store }[name]));
 
   let plus5;
   const off = cg.plus5.subscribe(v => plus5 = v);
