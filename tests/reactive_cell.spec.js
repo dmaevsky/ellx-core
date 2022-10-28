@@ -1,10 +1,11 @@
 import test from 'ava';
-import { observable, autorun } from 'quarx';
+import { autorun } from 'quarx';
+import { box } from 'quarx/box';
 import { isPromise } from 'conclure';
 
 import { reactiveCell } from '../src/reactive_cell.js';
 
-const evaluator = observable.box();
+const evaluator = box();
 
 const cell = reactiveCell(() => {
   const evaluate = evaluator.get();
@@ -16,7 +17,7 @@ test('reactiveCell', async t => {
   const promise = Promise.resolve(42);
   evaluator.set(() => promise);
 
-  const gate = observable.box(false);
+  const gate = box(false);
 
   const off = autorun(() => {
     if (!gate.get()) return;

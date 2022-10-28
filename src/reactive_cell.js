@@ -1,4 +1,6 @@
-import { createAtom, autorun, computed } from 'quarx';
+import { createAtom, autorun } from 'quarx';
+import { computed } from 'quarx/computed';
+
 import { pull } from './pull.js';
 
 export function reactiveCell(evaluate, options = {}) {

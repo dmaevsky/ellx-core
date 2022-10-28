@@ -1,4 +1,4 @@
-import { observable } from 'quarx';
+import { box } from 'quarx/box';
 import { isFlow } from 'conclure';
 import { reactiveCell } from './reactive_cell.js';
 import ProgressiveEval from './progressive_assembly.js';
@@ -19,7 +19,7 @@ export default class CalcNode {
 
     const makeEvaluator = expr => this.parser.parse(String(expr));
 
-    const evaluator = observable.box(makeEvaluator(formula), { name: `[${name}]:evaluator` });
+    const evaluator = box(makeEvaluator(formula), { name: `[${name}]:evaluator` });
 
     this.currentValue = reactiveCell(() => {
       const evaluate = evaluator.get();
