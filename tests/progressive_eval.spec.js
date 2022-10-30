@@ -297,3 +297,13 @@ test('String interpolation', t => {
   t.deepEqual(parser.dependencies(), new Set(['a', 'b']));
   t.is(evaluator(), `a + b is ${97 + 98}!`);
 });
+
+test('arguments reserved word', t => {
+  const evaluator = parser.parse('({ re, im = 0 } = math.complex(1, 1)) => arguments');
+  t.deepEqual(parser.dependencies(), new Set(['math']));
+
+  const fn = evaluator();
+
+  t.deepEqual(fn(), { re: 1, im: 1 })
+  t.deepEqual(fn({ re: 42 }), { re: 42, im: 0 })
+});

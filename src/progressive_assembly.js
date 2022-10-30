@@ -37,6 +37,9 @@ export const compile = (node, asRoot = false) => {
   if (node.external) {
     result = `this.external(${JSON.stringify(node.external)})`;
   }
+  else if (node.precompiled) {
+    result = node.precompiled;
+  }
   else if (node.transpile) {
     result = `this.nodes[${node.id}].transpile(${node.children.map(child => compile(child)).join(',')})`;
   }
@@ -76,10 +79,7 @@ const assembler = node => {
 export default class ProgressiveEval {
   constructor(external) {
     this.reserved = new Set(reservedWords);
-    this.globals =
-      typeof window === 'object' ? window :
-      typeof global === 'object' ? global :
-      {};
+    this.globals = globalThis;
 
     this.external = name => external(this.renamed.get(name) || name);
   }
@@ -126,7 +126,7 @@ export default class ProgressiveEval {
     let pos = 0, result = '';
 
     for (let node of this.nodes) {
-      if (node.type !== 'Identifier' && node.type !== 'BoundName') continue;
+      if (node.type !== 'Identifier' && node.bindingType !== 'SingleName') continue;
       if (!this.renamed.has(node.name)) continue;
 
       const replaced = node.shortNotation ?
@@ -152,13 +152,13 @@ export default class ProgressiveEval {
         const part = tree[p];
 
         if (part && typeof part === 'object') {
-          if (part.type === 'BoundName') {
+          if (part.bindingType === 'SingleName') {
             if (this.reserved.has(part.name)) {
               throw new Error(`Cannot use a reserved word ${part.name} as a parameter name`);
             }
             boundNames.push(part);
           }
-          else if (part.text) {
+          else if (part.type) {
             children.push(part);
           }
           else collectParts(part);
@@ -218,6 +218,10 @@ export default class ProgressiveEval {
             subscriber(value);
           })
         });
+      }
+      else if (node.name === 'arguments') {
+        const args = node.namespace || [];
+        node.precompiled = `({ ${[...args].join(',')} })`;
       }
       else if (this.reserved.has(node.name)) {
         throw new Error(`Cannot refer to a reserved word ${node.name} as a dependency`);
