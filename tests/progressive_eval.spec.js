@@ -307,3 +307,11 @@ test('arguments reserved word', t => {
   t.deepEqual(fn(), { re: 1, im: 1 })
   t.deepEqual(fn({ re: 42 }), { re: 42, im: 0 })
 });
+
+test('initializers depending on previous args', t => {
+  const evaluator = parser.parse('({a} = {a:42}, b = a * 2) => arguments')
+  t.is(parser.dependencies().size, 0);
+
+  const fn = evaluator();
+  t.deepEqual(fn(), { a: 42, b: 84 });
+});
