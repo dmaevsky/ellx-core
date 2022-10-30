@@ -6,7 +6,7 @@ import { fromObservable } from './adapters.js';
 
 export default class CalcNode {
   constructor(formula, resolve, options = {}) {
-    const { name = 'CalcNode' } = options;
+    const { name = `CalcNode(${formula})` } = options;
 
     this.parser = new ProgressiveEval(identifier => {
       const resolved = resolve(identifier);
@@ -25,7 +25,7 @@ export default class CalcNode {
       const evaluate = evaluator.get();
       return evaluate();
     }, {
-      name: `[${name}]:currentValue`
+      name: `${name}.currentValue`
     });
 
     Object.assign(this, fromObservable(this.currentValue, { name: `Subscribe to node: ${name}` }));

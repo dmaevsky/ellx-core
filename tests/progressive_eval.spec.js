@@ -315,3 +315,11 @@ test('initializers depending on previous args', t => {
   const fn = evaluator();
   t.deepEqual(fn(), { a: 42, b: 84 });
 });
+
+test('arguments with nested arrow functions', t => {
+  const evaluator = parser.parse('a => b => arguments')
+  t.is(parser.dependencies().size, 0);
+
+  const fn = evaluator();
+  t.deepEqual(fn(5)(6), { b: 6 });
+});

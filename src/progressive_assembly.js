@@ -174,8 +174,9 @@ export default class ProgressiveEval {
 
     if (node.type === 'ArrowFunction') {
       node.isArrowFn = true;
+      node.boundNames = boundNames.map(({ name }) => name);
       this.nodes.push(...boundNames);
-      node.namespace = Union(node.namespace, boundNames.map(({ name }) => name));
+      node.namespace = Union(node.namespace, node.boundNames);
     }
     else if (node.type === 'CallExpression' && node.callee.type === 'MemberExpression') {
       node.callee.isMemFn = true;
@@ -220,8 +221,10 @@ export default class ProgressiveEval {
         });
       }
       else if (node.name === 'arguments') {
-        const args = node.namespace || [];
-        node.precompiled = `({ ${[...args].join(',')} })`;
+        let n = node;
+        while (!n.boundNames && n.parent !== this) n = n.parent;
+
+        node.precompiled = `({ ${( n.boundNames || []).join(',')} })`;
       }
       else if (this.reserved.has(node.name)) {
         throw new Error(`Cannot refer to a reserved word ${node.name} as a dependency`);
