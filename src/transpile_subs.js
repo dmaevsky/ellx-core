@@ -1,5 +1,5 @@
 import { Quarx } from 'quarx';
-import { toObservable, fromObservable } from './adapters.js';
+import { toObservable, fromObservable } from 'quarx/adapters';
 import { isSubscribable } from './pull.js';
 import { reactiveCell } from './reactive_cell.js';
 
@@ -41,8 +41,7 @@ function getObs(subs) {
           }
           unsubscribe();
         }
-      },
-      get: subs.get
+      }
     });
   }
   return obs;

@@ -1,8 +1,8 @@
 import { box } from 'quarx/box';
+import { fromObservable } from 'quarx/adapters';
 import { isFlow } from 'conclure';
 import { reactiveCell } from './reactive_cell.js';
 import ProgressiveEval from './progressive_assembly.js';
-import { fromObservable } from './adapters.js';
 
 export default class CalcNode {
   constructor(formula, resolve, options = {}) {
