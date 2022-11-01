@@ -9,5 +9,4 @@ export function calcGraph(nodes, resolve) {
   return cg;
 }
 
-export { reactiveCell } from './reactive_cell.js';
 export { CalcNode };
