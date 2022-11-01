@@ -1,6 +1,6 @@
 import Parser from 'rd-parse';
 import Grammar from 'rd-parse-jsexpr';
-import { reactiveFlow } from 'quarx-async';
+import { reportObservedFlow } from 'quarx-async';
 import { isFlow, isIterator } from 'conclure';
 import reservedWords from './reserved_words.js';
 import { binaryOp, unaryOp, transpile } from './transpile.js';
@@ -348,8 +348,8 @@ function JIT_reactiveFlow(node) {
       return it;
     }
     else {
-      node.reactiveFlow = reactiveFlow;
+      node.reactiveFlow = reportObservedFlow;
     }
-    return reactiveFlow(it);
+    return reportObservedFlow(it);
   }
 }

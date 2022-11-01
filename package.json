@@ -8,9 +8,9 @@
     "test": "tests"
   },
   "dependencies": {
-    "conclure": "^2, >=2.1.0",
-    "quarx": "^5, >=5.1.0",
-    "quarx-async": "^0.9.1",
+    "conclure": "^2, >=2.2.0",
+    "quarx": "^5, >=5.2.0",
+    "quarx-async": "^0.10.0",
     "rd-parse": "^3.4.0",
     "rd-parse-jsexpr": "^3.0.0"
   },

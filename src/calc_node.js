@@ -1,5 +1,5 @@
 import { box } from 'quarx/box';
-import { fromObservable } from 'quarx/adapters';
+import { subscribable } from 'quarx/adapters';
 import { isFlow } from 'conclure';
 import { reactiveCell } from './reactive_cell.js';
 import ProgressiveEval from './progressive_assembly.js';
@@ -28,7 +28,7 @@ export default class CalcNode {
       name: `${name}.currentValue`
     });
 
-    Object.assign(this, fromObservable(this.currentValue, { name: `Subscribe to node: ${name}` }));
+    Object.assign(this, subscribable(() => this.currentValue.get(), { name: `Subscribe to node: ${name}` }));
 
     this.update = expr => evaluator.set(makeEvaluator(expr));
   }
