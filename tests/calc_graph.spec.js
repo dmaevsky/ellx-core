@@ -10,18 +10,19 @@ test('basic graph operations', t => {
     b: 'a + 6'
   });
 
-  let b;
-  off = cg.b.subscribe(value => b = value);
+  const results = [], errors = [];
 
-  t.is(b, 11);
+  off = cg.b.subscribe(value => results.push(value), error => errors.push(error));
+
+  t.is(results[0], 11);
 
   cg.a.update('b');
 
-  t.true(b instanceof Error);
-  t.is(b.message, '[Quarx]: Circular dependency detected: a.currentValue -> b.currentValue:cell -> b.currentValue -> a.currentValue:cell -> a.currentValue');
+  t.true(errors[0] instanceof Error);
+  t.is(errors[0].message, '[Quarx ERROR]:cycle detected:(Evaluate a):(Evaluate b):(Evaluate a)');
 
   cg.a.update('42');
-  t.is(b, 48);
+  t.is(results[1], 48);
 
   t.throws(() => cg.a.update('function'), { instanceOf: Error, message: 'Cannot refer to a reserved word function as a dependency' });
 });
@@ -32,11 +33,11 @@ test('evaluation error for a node should be cleared after setting the right valu
     qq: 'r.map(i=>i+1)'
   });
 
-  let qq;
-  off = cg.qq.subscribe(value => qq = value);
+  let qq, err;
+  off = cg.qq.subscribe(value => qq = value, e => err = e);
 
-  t.true(qq instanceof Error);
-  t.is(qq.message, 'r.map is not a function');
+  t.true(err instanceof Error);
+  t.is(err.message, 'r.map is not a function');
 
   cg.r.update('[0,1]');
 

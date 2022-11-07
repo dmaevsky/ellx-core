@@ -1,10 +1,11 @@
 import Parser from 'rd-parse';
 import Grammar from 'rd-parse-jsexpr';
-import { reportObservedFlow } from 'quarx-async';
 import { isFlow, isIterator } from 'conclure';
 import reservedWords from './reserved_words.js';
 import { binaryOp, unaryOp, transpile } from './transpile.js';
 import { isSubscribable, pull } from './pull.js';
+
+const reportObservedFlow = i => i;
 
 const parseFormula = Parser(Grammar);
 const Union = (...sets) => sets.reduce((acc, s) => (s ? new Set([...acc, ...s]) : acc), new Set());
