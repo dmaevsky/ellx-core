@@ -2,7 +2,6 @@ import { box } from 'quarx/box';
 import { toObservable } from 'quarx/adapters';
 import { subscribableAsync } from 'quarx-async';
 import { isFlow } from 'conclure';
-import { reactiveCell } from './reactive_cell.js';
 import ProgressiveEval from './progressive_assembly.js';
 import { subscribableAsyncFlat } from './transpile_subs.js';
 
