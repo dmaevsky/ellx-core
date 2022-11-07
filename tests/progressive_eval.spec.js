@@ -17,7 +17,7 @@ test('Identifier, Literal, BinaryExpression', t => {
 
   // Not evaluated yet, so expect the binary + to be deferred
   t.is(compile(parser.root, true),
-    'this.nodes[0].reactiveFlow(this.nodes[0].transpile(this.nodes[1].reactiveFlow(this.external("a")),this.nodes[2].reactiveFlow(42)))'
+    'this.nodes[0].transpile(this.external("a"),42)'
   );
   t.is(evaluator(), 97 + 42);
 
@@ -34,7 +34,7 @@ test('exponentiation operator', t => {
 test('string literals concatenation with binary +', t => {
   const evaluator = parser.parse('"a" + "b"');
   t.is(compile(parser.root, true),
-    'this.nodes[0].reactiveFlow(this.nodes[0].transpile(this.nodes[1].reactiveFlow("a"),this.nodes[2].reactiveFlow("b")))'
+    'this.nodes[0].transpile("a","b")'
   );
   t.is(evaluator(), 'ab');
   t.is(compile(parser.root, true), '"a" + "b"');
@@ -54,7 +54,7 @@ test('ArrowFunction', t => {
   t.deepEqual(outer.closure, {});
 
   const inner = outer(5);
-  t.true(inner.signature().startsWith('(b = this.nodes[4].reactiveFlow(this.external("c"))) => this.nodes[5].reactiveFlow(this.nodes[5].transpile('));
+  t.is(inner.signature(), '(b = this.external("c")) => this.nodes[5].transpile(this.nodes[6].transpile(a,this.external("x")),b)');
   t.deepEqual(inner.closure, {a: 5});
 
   t.is(inner(), 5 * 120 + 99);
@@ -163,12 +163,12 @@ test('ConditionalExpression', t => {
   t.deepEqual(parser.dependencies(), new Set(['a']));
 
   const f = evaluator();
-  t.true(f.signature().startsWith(
-    'x => this.nodes[2].reactiveFlow(this.nodes[3].reactiveFlow(this.nodes[3].transpile(this.nodes[4].reactiveFlow(x),this.nodes[5].reactiveFlow(this.external("a")))) ?'
-  ));
+  t.is(f.signature(),
+    'x => this.nodes[3].transpile(x,this.external("a")) ? this.nodes[6].transpile(x,this.external("a")) : this.nodes[9].transpile(this.external("a"),x)'
+  );
 
   t.is(f(100), 100 - 97);
-  t.is(f.signature(), `x => x > this.external("a") ? x - this.external("a") : this.nodes[9].reactiveFlow(this.nodes[9].transpile(this.nodes[10].reactiveFlow(this.external("a")),this.nodes[11].reactiveFlow(x)))`);
+  t.is(f.signature(), `x => x > this.external("a") ? x - this.external("a") : this.nodes[9].transpile(this.external("a"),x)`);
   t.is(f(80), 97 - 80);
   t.is(f.signature(), 'x => x > this.external("a") ? x - this.external("a") : this.external("a") - x');
 });
@@ -229,14 +229,14 @@ test('that external nodes are evaluated lazily when not inside ArrowFunction bod
 
   let f = evaluator();
   t.is(compile(parser.root, true), `this.external("a") > 100 ? this.nodes[${arrows[0].id}].evaluator({}) : this.nodes[${arrows[1].id}].evaluator({})`);
-  t.is(f.signature(), '() => this.nodes[7].reactiveFlow(this.external("y"))');
+  t.is(f.signature(), '() => this.external("y")');
   t.is(f(), 121);
   t.is(f.signature(), '() => this.external("y")');
 
   parser.rename('a', 'z');
   t.is(f(), 121);
   f = evaluator();
-  t.is(f.signature(), '() => this.nodes[5].reactiveFlow(this.external("x"))');
+  t.is(f.signature(), '() => this.external("x")');
   t.is(f(), 120);
   t.is(f.signature(), '() => this.external("x")');
 });

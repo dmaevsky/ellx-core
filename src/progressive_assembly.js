@@ -1,11 +1,9 @@
 import Parser from 'rd-parse';
 import Grammar from 'rd-parse-jsexpr';
-import { isFlow, isIterator } from 'conclure';
+import { isFlow } from 'conclure';
 import reservedWords from './reserved_words.js';
 import { binaryOp, unaryOp, transpile } from './transpile.js';
 import { isSubscribable, pull } from './pull.js';
-
-const reportObservedFlow = i => i;
 
 const parseFormula = Parser(Grammar);
 const Union = (...sets) => sets.reduce((acc, s) => (s ? new Set([...acc, ...s]) : acc), new Set());
@@ -46,10 +44,6 @@ export const compile = (node, asRoot = false) => {
   }
   else {
     result = fromParts(node, child => compile(child));
-  }
-
-  if (node.reactiveFlow) {
-    result = `this.nodes[${node.id}].reactiveFlow(${result})`;
   }
 
   if (node.shortNotation) {
@@ -262,8 +256,6 @@ export default class ProgressiveEval {
       JIT_transpile(node, opOverload(node.operator), arg => typeof arg === 'object' || typeof arg === 'function');
     }
 
-    JIT_reactiveFlow(node);
-
     if (parent === this || node.isArrowFn || node.catchErrors) {
       node.evaluator = this.progressiveEvaluator(node);
     }
@@ -339,18 +331,4 @@ function JIT_transpile(node, op, shouldTranspile) {
     else node.transpile = op;
     return op(...parts);
   };
-}
-
-function JIT_reactiveFlow(node) {
-  node.reactiveFlow = it => {
-    if (!isIterator(it)) {
-      delete node.reactiveFlow;
-      invalidate(node);
-      return it;
-    }
-    else {
-      node.reactiveFlow = reportObservedFlow;
-    }
-    return reportObservedFlow(it);
-  }
 }
