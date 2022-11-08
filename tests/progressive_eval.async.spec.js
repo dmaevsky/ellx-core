@@ -2,7 +2,7 @@ import test from 'ava';
 import { conclude } from 'conclure';
 import math from './math.mock.js';
 
-import ProgressiveEval, { compile } from '../src/progressive_assembly.js';
+import { progressiveAssembly, compile } from '../src/progressive_assembly.js';
 import * as library from './tools.js';
 
 const resolve = name => {
@@ -13,12 +13,13 @@ const resolve = name => {
 
 const parse = formula => {
   // Make a new parser for each formula (1 in each test)
-  const parser = new ProgressiveEval(resolve);
-  const evaluator = parser.parse(formula);
+  const root = progressiveAssembly(formula, resolve);
+  const evaluator = root.evaluator;
+
   const result = () => new Promise((resolve, reject) =>
     conclude(evaluator(), (error, result) => error ? reject(error) : resolve(result))
   );
-  result.compiled = () => compile(parser.root, true);
+  result.compiled = () => compile(root, true);
   return result;
 }
 

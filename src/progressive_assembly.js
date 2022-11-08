@@ -26,7 +26,7 @@ const fromParts = (node, replacer) => {
 export const compile = (node, asRoot = false) => {
 
   if (!asRoot && node.evaluator) {
-    const args = node.parent.namespace || [];
+    const args = node.parent ? node.parent.namespace : [];
     return `this.nodes[${node.id}].evaluator({${[...args].join(',')}})`;
   }
 
@@ -70,34 +70,29 @@ const assembler = node => {
   }
 }
 
-export default class ProgressiveEval {
-  constructor(resolve) {
-    this.reserved = new Set(reservedWords);
-    this.globals = globalThis;
+export function progressiveAssembly(input, resolve) {
+  const self = {
+    external: resolve,
+    nodes: []
+  };
 
-    this.external = resolve;
-  }
+  const reserved = new Set(reservedWords);
+  const globals = globalThis;
 
-  parse(input) {
-    this.nodes = [];
-    const ids = new WeakMap();
+  const root = parseFormula(input);
+  precompile(root);
 
-    this.getNodeId = node => {
-      if (!ids.has(node)) {
-        ids.set(node, this.nodes.push(node) - 1);
-      }
-      return ids.get(node);
+  const ids = new WeakMap();
+
+  function getNodeId(node) {
+    if (!ids.has(node)) {
+      ids.set(node, self.nodes.push(node) - 1);
     }
-
-    this.root = parseFormula(input);
-
-    this.precompile(this.root);
-
-    return () => this.root.evaluator();
+    return ids.get(node);
   }
 
-  precompile(node, parent = this) {
-    Object.defineProperty(node, 'id', { get: () => this.getNodeId(node) })
+  function precompile(node, parent = null) {
+    Object.defineProperty(node, 'id', { get: () => getNodeId(node) })
 
     const children = [];
     const boundNames = [];
@@ -108,7 +103,7 @@ export default class ProgressiveEval {
 
         if (part && typeof part === 'object') {
           if (part.bindingType === 'SingleName') {
-            if (this.reserved.has(part.name)) {
+            if (reserved.has(part.name)) {
               throw new Error(`Cannot use a reserved word ${part.name} as a parameter name`);
             }
             boundNames.push(part);
@@ -128,7 +123,7 @@ export default class ProgressiveEval {
 
     node.children = children;
     node.parent = parent;
-    node.namespace = parent.namespace;
+    node.namespace = parent ? parent.namespace : new Set();
 
     if (node.type === 'ArrowFunction') {
       node.isArrowFn = true;
@@ -149,7 +144,7 @@ export default class ProgressiveEval {
     }
 
     for (let child of node.children) {
-      this.precompile(child, node);
+      precompile(child, node);
     }
 
     for (let part of node.parts) part.pos -= node.pos;
@@ -181,15 +176,15 @@ export default class ProgressiveEval {
       }
       else if (node.name === 'arguments') {
         let n = node;
-        while (!n.boundNames && n.parent !== this) n = n.parent;
+        while (!n.boundNames && n.parent) n = n.parent;
 
         node.precompiled = `({ ${( n.boundNames || []).join(',')} })`;
       }
-      else if (this.reserved.has(node.name)) {
+      else if (reserved.has(node.name)) {
         throw new Error(`Cannot refer to a reserved word ${node.name} as a dependency`);
       }
 
-      if (this.reserved.has(node.name) || node.name in this.globals || node.namespace && node.namespace.has(node.name)) {
+      if (reserved.has(node.name) || node.name in globals || node.namespace.has(node.name)) {
         node.deps = new Set();
       }
       else {
@@ -220,16 +215,16 @@ export default class ProgressiveEval {
       JIT_transpile(node, opOverload(node.operator), arg => typeof arg === 'object' || typeof arg === 'function');
     }
 
-    if (parent === this || node.isArrowFn || node.catchErrors) {
-      node.evaluator = this.progressiveEvaluator(node);
+    if (!parent || node.isArrowFn || node.catchErrors) {
+      node.evaluator = progressiveEvaluator(node);
     }
   }
 
   // Only the root node and arrow function root nodes will have evaluators, non-removable
 
-  buildEvaluator(node) {
-    const args = node.parent.namespace || [];
-    const evalFn = new Function(`{ ${[...args].join(',')} }`, 'return ' + compile(node, true)).bind(this);
+  function buildEvaluator(node) {
+    const args = node.parent ? node.parent.namespace : [];
+    const evalFn = new Function(`{ ${[...args].join(',')} }`, 'return ' + compile(node, true)).bind(self);
 
     if (!node.catchErrors) return evalFn;
 
@@ -243,12 +238,12 @@ export default class ProgressiveEval {
     };
   }
 
-  progressiveEvaluator(node) {
+  function progressiveEvaluator(node) {
     let evaluator = null;
 
     return Object.assign((context = {}) => {
       if (!evaluator) {
-        evaluator = this.buildEvaluator(node);
+        evaluator = buildEvaluator(node);
       }
 
       let lastEvaluator = evaluator;
@@ -258,7 +253,7 @@ export default class ProgressiveEval {
         const fn = (...args) => {
           if (lastEvaluator !== evaluator) {
             if (!evaluator) {
-              evaluator = this.buildEvaluator(node);
+              evaluator = buildEvaluator(node);
             }
             lastEvaluator = evaluator;
             result = evaluator(context);
@@ -276,6 +271,8 @@ export default class ProgressiveEval {
       invalidate: () => evaluator = null
     });
   }
+
+  return root;
 }
 
 function invalidate(node) {
@@ -295,10 +292,4 @@ function JIT_transpile(node, op, shouldTranspile) {
     else node.transpile = op;
     return op(...parts);
   };
-}
-
-export function progressiveAssembly(formula, resolve) {
-  const assembly = new ProgressiveEval(resolve);
-  assembly.parse(formula);
-  return assembly.root;
 }

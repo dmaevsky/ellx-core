@@ -1,7 +1,7 @@
 import ava from 'ava';
 const test = ava.serial;
 
-import ProgressiveEval from '../src/progressive_assembly.js';
+import { progressiveAssembly } from '../src/progressive_assembly.js';
 import * as library from './tools.js';
 
 const resolve = name => {
@@ -9,11 +9,10 @@ const resolve = name => {
   return name.charCodeAt(0);
 }
 
-const parser = new ProgressiveEval(resolve);
-
 test.skip('transpiled arrow function performance', t => {
   const formula = 'range(0, 1000000).reduce((a, b) => a + b)';
-  const evaluator1 = parser.parse(formula);
+
+  const evaluator1 = progressiveAssembly(formula, resolve).evaluator;
   const evaluator2 = new Function('range', 'return () => ' + formula)(library.range);
 
   const start1 = Date.now();
