@@ -44,7 +44,7 @@ test('ArrowFunction', t => {
   const evaluator = parser.parse('a => (b = c) => a * x + b');
 
   t.is(parser.root.type, 'ArrowFunction');
-  t.deepEqual(parser.dependencies(), new Set(['c', 'x']));
+  t.deepEqual(parser.root.deps, new Set(['c', 'x']));
 
   const outer = evaluator();
   t.is(outer.signature(), `a => this.nodes[${parser.root.result.id}].evaluator({a})`);
@@ -63,7 +63,7 @@ test('ArrowFunction', t => {
 
 test('ArrayLiteral, EmptyElement, SpreadElement, and rest parameter', t => {
   const evaluator = parser.parse('(a, ...z) => [...z, , a]');
-  t.is(parser.dependencies().size, 0);
+  t.is(parser.root.deps.size, 0);
 
   const f = evaluator();
   t.deepEqual(f(1,2,3), [2,3,,1]);
@@ -83,7 +83,7 @@ test('CompoundExpression', t => {
 
   const evaluator = parser.parse('(__ellxSpy(555), 42)');
   t.is(parser.root.type, 'CompoundExpression');
-  t.is(parser.dependencies().size, 0);
+  t.is(parser.root.deps.size, 0);
 
   t.is(evaluator(), 42);
   t.is(compile(parser.root, true), '(__ellxSpy(555), 42)');
@@ -93,7 +93,7 @@ test('CompoundExpression', t => {
 test('ObjectLiteral', t => {
   const evaluator = parser.parse('{ foo: "bar", [x]: y }');
   t.is(parser.root.type, 'ObjectLiteral');
-  t.deepEqual(parser.dependencies(), new Set(['x', 'y']));
+  t.deepEqual(parser.root.deps, new Set(['x', 'y']));
   t.deepEqual(evaluator(), { foo: 'bar', 120: 121 });
   t.is(compile(parser.root, true), '{ foo: "bar", [this.external("x")]: this.external("y") }');
 });
@@ -101,7 +101,7 @@ test('ObjectLiteral', t => {
 test('CallExpression', t => {
   const evaluator = parser.parse('((a, b, c) => a * x + b * c)(...[5, c], 2)');
   t.is(parser.root.type, 'CallExpression');
-  t.deepEqual(parser.dependencies(), new Set(['x', 'c']));
+  t.deepEqual(parser.root.deps, new Set(['x', 'c']));
 
   t.is(evaluator(), 5 * 120 + 99 * 2);
   t.is(compile(parser.root, true), `this.nodes[${parser.root.callee.id}].evaluator({})(...[5, this.external("c")], 2)`);
@@ -110,7 +110,7 @@ test('CallExpression', t => {
 test('MemberExpression', t => {
   const evaluator = parser.parse('({x}).x');
   t.is(parser.root.type, 'MemberExpression');
-  t.deepEqual(parser.dependencies(), new Set(['x']));
+  t.deepEqual(parser.root.deps, new Set(['x']));
   t.is(evaluator(), 120);
   t.is(compile(parser.root, true), '({x:this.external("x")}).x');
 
@@ -126,7 +126,7 @@ test('MemberExpression with a compiled property', t => {
 
 test('using library functions', t => {
   const evaluator = parser.parse('range(1, 3).map(i => i + x)');
-  t.deepEqual(parser.dependencies(), new Set(['range', 'x']));
+  t.deepEqual(parser.root.deps, new Set(['range', 'x']));
 
   t.deepEqual(evaluator(), [121, 122]);
   t.is(compile(parser.root, true), `this.external("range")(1, 3).map(this.nodes[${parser.root.arguments[0].id}].evaluator({}))`);
@@ -136,7 +136,7 @@ test('using library functions', t => {
 test('NewExpression', t => {
   const evaluator = parser.parse('new Array(3)');
   t.is(parser.root.type, 'NewExpression');
-  t.is(parser.dependencies().size, 0);
+  t.is(parser.root.deps.size, 0);
   t.deepEqual(evaluator(), [,,,]);
   t.is(compile(parser.root, true), 'new (Array)(3)');
 });
@@ -144,7 +144,7 @@ test('NewExpression', t => {
 test('UnaryExpression', t => {
   const evaluator = parser.parse('typeof +"42"');
   t.is(parser.root.type, 'UnaryExpression');
-  t.is(parser.dependencies().size, 0);
+  t.is(parser.root.deps.size, 0);
   t.is(evaluator(), 'number');
   t.is(compile(parser.root, true), 'typeof +"42"');
 });
@@ -152,7 +152,7 @@ test('UnaryExpression', t => {
 test('ConditionalExpression', t => {
   const evaluator = parser.parse('x => x > a ? x - a : a - x');
   t.is(parser.root.result.type, 'ConditionalExpression');
-  t.deepEqual(parser.dependencies(), new Set(['a']));
+  t.deepEqual(parser.root.deps, new Set(['a']));
 
   const f = evaluator();
   t.is(f.signature(),
@@ -168,7 +168,7 @@ test('ConditionalExpression', t => {
 test('transpilation of UnaryExpression', t => {
   const evaluator = parser.parse('~math.complex(1,2)');
   t.is(parser.root.type, 'UnaryExpression');
-  t.is(parser.dependencies().size, 1);
+  t.is(parser.root.deps.size, 1);
   t.deepEqual(evaluator(), math.complex(1, -2));
   t.is(compile(parser.root, true), 'this.nodes[0].transpile(this.external("math").complex(1,2))');
   t.deepEqual(evaluator(), math.complex(1, -2));
@@ -177,7 +177,7 @@ test('transpilation of UnaryExpression', t => {
 test('transpilation of BinaryExpression', t => {
   const evaluator = parser.parse('math.complex(1,2) * math.complex(1,-2)');
   t.is(parser.root.type, 'BinaryExpression');
-  t.is(parser.dependencies().size, 1);
+  t.is(parser.root.deps.size, 1);
   t.deepEqual(evaluator(), math.complex(5, 0));
   t.is(compile(parser.root, true), 'this.nodes[0].transpile(this.external("math").complex(1,2),this.external("math").complex(1,-2))');
   t.deepEqual(evaluator(), math.complex(5, 0));
@@ -202,7 +202,7 @@ test('more cases of arrow functions depending on external nodes', t => {
 
 test('MemFn expression', t => {
   const evaluator = parser.parse('[1, 2].reduce((a, b) => a + b)');
-  t.is(parser.dependencies().size, 0);
+  t.is(parser.root.deps.size, 0);
   t.is(evaluator(), 3);
   t.is(compile(parser.root, true), '[1, 2].reduce(this.nodes[2].evaluator({}))');
   t.is(evaluator(), 3);
@@ -210,13 +210,13 @@ test('MemFn expression', t => {
 
 test('String interpolation', t => {
   const evaluator = parser.parse('`a + b is ${a + b}!`');
-  t.deepEqual(parser.dependencies(), new Set(['a', 'b']));
+  t.deepEqual(parser.root.deps, new Set(['a', 'b']));
   t.is(evaluator(), `a + b is ${97 + 98}!`);
 });
 
 test('arguments reserved word', t => {
   const evaluator = parser.parse('({ re, im = 0 } = math.complex(1, 1)) => arguments');
-  t.deepEqual(parser.dependencies(), new Set(['math']));
+  t.deepEqual(parser.root.deps, new Set(['math']));
 
   const fn = evaluator();
 
@@ -226,7 +226,7 @@ test('arguments reserved word', t => {
 
 test('initializers depending on previous args', t => {
   const evaluator = parser.parse('({a} = {a:42}, b = a * 2) => arguments')
-  t.is(parser.dependencies().size, 0);
+  t.is(parser.root.deps.size, 0);
 
   const fn = evaluator();
   t.deepEqual(fn(), { a: 42, b: 84 });
@@ -234,7 +234,7 @@ test('initializers depending on previous args', t => {
 
 test('arguments with nested arrow functions', t => {
   const evaluator = parser.parse('a => b => arguments')
-  t.is(parser.dependencies().size, 0);
+  t.is(parser.root.deps.size, 0);
 
   const fn = evaluator();
   t.deepEqual(fn(5)(6), { b: 6 });

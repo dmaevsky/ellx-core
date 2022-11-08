@@ -96,10 +96,6 @@ export default class ProgressiveEval {
     return () => this.root.evaluator();
   }
 
-  dependencies() {
-    return new Set([...this.root.deps]);
-  }
-
   precompile(node, parent = this) {
     Object.defineProperty(node, 'id', { get: () => this.getNodeId(node) })
 
