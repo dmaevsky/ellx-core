@@ -110,7 +110,7 @@ test('renaming external node when a conflicting arrow argument is present', t =>
 
   let f = evaluator();
   t.is(f(2), 100);
-  t.is(f.signature(), 'a => ({a:a}).a + this.external("bb")');
+  t.is(f.signature(), 'a => ({a}).a + this.external("bb")');
 
   rename('bb', 'a');
   t.is(withRenames(root), 'bb => ({a:bb}).a + a');
@@ -119,7 +119,7 @@ test('renaming external node when a conflicting arrow argument is present', t =>
 
   f = evaluator();
   // After recalculation the compiled internals stay the same, but the externals re-captured correctly
-  t.is(f.signature(), 'a => ({a:a}).a + this.external("bb")');
+  t.is(f.signature(), 'a => ({a}).a + this.external("bb")');
   t.is(f(2), 99);
 
   // Renaming it back brings the original formula back

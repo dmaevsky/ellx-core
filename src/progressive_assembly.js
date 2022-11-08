@@ -32,10 +32,7 @@ export const compile = (node, asRoot = false) => {
 
   let result;
 
-  if (node.external) {
-    result = `this.external(${JSON.stringify(node.external)})`;
-  }
-  else if (node.precompiled) {
+  if (node.precompiled) {
     result = node.precompiled;
   }
   else if (node.transpile) {
@@ -45,10 +42,7 @@ export const compile = (node, asRoot = false) => {
     result = fromParts(node, child => compile(child));
   }
 
-  if (node.shortNotation) {
-    result = node.name + ':' + result;
-  }
-  else if (node.isConstructor) {
+  if (node.isConstructor) {
     result = `(${result})`;
   }
 
@@ -188,9 +182,13 @@ export function progressiveAssembly(input, resolve) {
         node.deps = new Set();
       }
       else {
-        // If node.namespace is present (we are inside an arrow function), but does not include the name, then it is still a dependency
+        // If node.namespace does not include the name, then it is a dependency
         node.deps = new Set([node.name]);
-        node.external = node.name;
+        node.precompiled = `this.external(${JSON.stringify(node.name)})`;
+
+        if (node.shortNotation) {
+          node.precompiled = node.name + ':' + node.precompiled;
+        }
       }
     }
     else node.deps = Union(...node.children.map(child => child.deps));
