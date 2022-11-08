@@ -14,9 +14,8 @@ const fromParts = (node, replacer) => {
   let pos = 0, result = '', count = 0;
 
   for (let child of node.children) {
-    const childPos = child.pos - node.pos;
-    result += node.text.slice(pos, childPos) + replacer(child, count++);
-    pos = childPos + child.text.length;
+    result += node.text.slice(pos, child.pos) + replacer(child, count++);
+    pos = child.pos + child.text.length;
   }
 
   result += node.text.slice(pos);
@@ -72,72 +71,37 @@ const assembler = node => {
 }
 
 export default class ProgressiveEval {
-  constructor(external) {
+  constructor(resolve) {
     this.reserved = new Set(reservedWords);
     this.globals = globalThis;
 
-    this.external = name => external(this.renamed.get(name) || name);
+    this.external = resolve;
   }
 
   parse(input) {
     this.nodes = [];
+    const ids = new WeakMap();
 
-    this.renamed = new Map();
-    this.input = this.originalInput = input;
+    this.getNodeId = node => {
+      if (!ids.has(node)) {
+        ids.set(node, this.nodes.push(node) - 1);
+      }
+      return ids.get(node);
+    }
 
     this.root = parseFormula(input);
 
     this.precompile(this.root);
 
-    this.nodes.sort((a, b) => a.pos - b.pos || b.text.length - a.text.length);
-    this.nodes.forEach((node, i) => node.id = i);
-
     return () => this.root.evaluator();
   }
 
   dependencies() {
-    return new Set([...this.root.deps].map(name => this.renamed.get(name) || name));
-  }
-
-  rename(oldName, newName) {
-    if (!this.dependencies().has(oldName)) return;
-
-    if (this.renamed.has(oldName)) {
-      const original = this.renamed.get(oldName);
-      this.renamed.delete(oldName);
-      oldName = original;
-    }
-
-    if (oldName === newName) {
-      this.renamed.delete(oldName);
-      this.renamed.delete(newName);
-    }
-    else {
-      this.renamed.set(oldName, newName);
-      this.renamed.set(newName, oldName);
-    }
-
-    // re-assemble this.input
-    let pos = 0, result = '';
-
-    for (let node of this.nodes) {
-      if (node.type !== 'Identifier' && node.bindingType !== 'SingleName') continue;
-      if (!this.renamed.has(node.name)) continue;
-
-      const replaced = node.shortNotation ?
-        node.name + ':' + this.renamed.get(node.name) :
-        this.renamed.get(node.name);
-
-      result += this.originalInput.slice(pos, node.pos) + replaced;
-      pos = node.pos + node.text.length;
-    }
-
-    result += this.originalInput.slice(pos);
-    this.input = result;
+    return new Set([...this.root.deps]);
   }
 
   precompile(node, parent = this) {
-    this.nodes.push(node);
+    Object.defineProperty(node, 'id', { get: () => this.getNodeId(node) })
 
     const children = [];
     const boundNames = [];
@@ -163,6 +127,9 @@ export default class ProgressiveEval {
 
     collectParts(node);
 
+    node.parts = [...children, ...boundNames];
+    node.parts.sort((a, b) => a.pos - b.pos);
+
     node.children = children;
     node.parent = parent;
     node.namespace = parent.namespace;
@@ -170,7 +137,6 @@ export default class ProgressiveEval {
     if (node.type === 'ArrowFunction') {
       node.isArrowFn = true;
       node.boundNames = boundNames.map(({ name }) => name);
-      this.nodes.push(...boundNames);
       node.namespace = Union(node.namespace, node.boundNames);
     }
     else if (node.type === 'CallExpression' && node.callee.type === 'MemberExpression') {
@@ -189,6 +155,8 @@ export default class ProgressiveEval {
     for (let child of node.children) {
       this.precompile(child, node);
     }
+
+    for (let part of node.parts) part.pos -= node.pos;
 
     if (node.type === 'Identifier') {
       if (node.name === 'throw') {
@@ -331,4 +299,10 @@ function JIT_transpile(node, op, shouldTranspile) {
     else node.transpile = op;
     return op(...parts);
   };
+}
+
+export function progressiveAssembly(formula, resolve) {
+  const assembly = new ProgressiveEval(resolve);
+  assembly.parse(formula);
+  return assembly.root;
 }

@@ -46,15 +46,12 @@ test('ArrowFunction', t => {
   t.is(parser.root.type, 'ArrowFunction');
   t.deepEqual(parser.dependencies(), new Set(['c', 'x']));
 
-  const arrows = parser.nodes.filter(node => node.type === 'ArrowFunction');
-  t.is(arrows.length, 2);
-
   const outer = evaluator();
-  t.is(outer.signature(), `a => this.nodes[${arrows[1].id}].evaluator({a})`);
+  t.is(outer.signature(), `a => this.nodes[${parser.root.result.id}].evaluator({a})`);
   t.deepEqual(outer.closure, {});
 
   const inner = outer(5);
-  t.is(inner.signature(), '(b = this.external("c")) => this.nodes[5].transpile(this.nodes[6].transpile(a,this.external("x")),b)');
+  t.is(inner.signature(), '(b = this.external("c")) => this.nodes[1].transpile(this.nodes[2].transpile(a,this.external("x")),b)');
   t.deepEqual(inner.closure, {a: 5});
 
   t.is(inner(), 5 * 120 + 99);
@@ -106,11 +103,8 @@ test('CallExpression', t => {
   t.is(parser.root.type, 'CallExpression');
   t.deepEqual(parser.dependencies(), new Set(['x', 'c']));
 
-  const arrows = parser.nodes.filter(node => node.type === 'ArrowFunction');
-  t.is(arrows.length, 1);
-
   t.is(evaluator(), 5 * 120 + 99 * 2);
-  t.is(compile(parser.root, true), `this.nodes[${arrows[0].id}].evaluator({})(...[5, this.external("c")], 2)`);
+  t.is(compile(parser.root, true), `this.nodes[${parser.root.callee.id}].evaluator({})(...[5, this.external("c")], 2)`);
 });
 
 test('MemberExpression', t => {
@@ -133,11 +127,9 @@ test('MemberExpression with a compiled property', t => {
 test('using library functions', t => {
   const evaluator = parser.parse('range(1, 3).map(i => i + x)');
   t.deepEqual(parser.dependencies(), new Set(['range', 'x']));
-  const arrows = parser.nodes.filter(node => node.type === 'ArrowFunction');
-  t.is(arrows.length, 1);
 
   t.deepEqual(evaluator(), [121, 122]);
-  t.is(compile(parser.root, true), `this.external("range")(1, 3).map(this.nodes[${arrows[0].id}].evaluator({}))`);
+  t.is(compile(parser.root, true), `this.external("range")(1, 3).map(this.nodes[${parser.root.arguments[0].id}].evaluator({}))`);
   t.deepEqual(evaluator(), [121, 122]);
 });
 
@@ -164,11 +156,11 @@ test('ConditionalExpression', t => {
 
   const f = evaluator();
   t.is(f.signature(),
-    'x => this.nodes[3].transpile(x,this.external("a")) ? this.nodes[6].transpile(x,this.external("a")) : this.nodes[9].transpile(this.external("a"),x)'
+    'x => this.nodes[0].transpile(x,this.external("a")) ? this.nodes[1].transpile(x,this.external("a")) : this.nodes[2].transpile(this.external("a"),x)'
   );
 
   t.is(f(100), 100 - 97);
-  t.is(f.signature(), `x => x > this.external("a") ? x - this.external("a") : this.nodes[9].transpile(this.external("a"),x)`);
+  t.is(f.signature(), `x => x > this.external("a") ? x - this.external("a") : this.nodes[2].transpile(this.external("a"),x)`);
   t.is(f(80), 97 - 80);
   t.is(f.signature(), 'x => x > this.external("a") ? x - this.external("a") : this.external("a") - x');
 });
@@ -196,49 +188,9 @@ test('more awesome transpilation', t => {
   t.deepEqual(evaluator(), math.complex(13, 0));
 });
 
-test('renaming external node', t => {
-  const evaluator = parser.parse('x * (x - y)');
-  t.is(evaluator(), -120);
-  t.is(compile(parser.root, true), 'this.external("x") * (this.external("x") - this.external("y"))');
-  t.deepEqual(parser.dependencies(), new Set(['x', 'y']));
-
-  parser.rename('x', 'zNew');
-  t.is(parser.input, 'zNew * (zNew - y)');
-  t.is(compile(parser.root, true), 'this.external("x") * (this.external("x") - this.external("y"))');
-  t.deepEqual([...parser.renamed], [['x', 'zNew'], ['zNew', 'x']]);
-  t.deepEqual(parser.dependencies(), new Set(['zNew', 'y']));
-  t.is(evaluator(), 122);
-
-  parser.rename('zNew', 'dAnother');
-  parser.rename('y', 'yAnother');
-  t.is(parser.input, 'dAnother * (dAnother - yAnother)');
-  t.deepEqual([...parser.renamed], [['x', 'dAnother'], ['dAnother', 'x'], ['y', 'yAnother'], ['yAnother', 'y']]);
-  t.deepEqual(parser.dependencies(), new Set(['dAnother', 'yAnother']));
-  t.is(evaluator(), -2100);
-});
-
 test('Fibonacci numbers sequence generation', t => {
   const evaluator = parser.parse('range(0, 5).reduce(acc => acc.concat(acc[acc.length-1] + acc[acc.length-2]), [1,1])');
   t.deepEqual(evaluator(), [1, 1, 2, 3, 5, 8, 13]);
-});
-
-test('that external nodes are evaluated lazily when not inside ArrowFunction body', t => {
-  const evaluator = parser.parse('a > 100 ? () => x : () => y');
-  const arrows = parser.nodes.filter(node => node.type === 'ArrowFunction');
-  t.is(arrows.length, 2);
-
-  let f = evaluator();
-  t.is(compile(parser.root, true), `this.external("a") > 100 ? this.nodes[${arrows[0].id}].evaluator({}) : this.nodes[${arrows[1].id}].evaluator({})`);
-  t.is(f.signature(), '() => this.external("y")');
-  t.is(f(), 121);
-  t.is(f.signature(), '() => this.external("y")');
-
-  parser.rename('a', 'z');
-  t.is(f(), 121);
-  f = evaluator();
-  t.is(f.signature(), '() => this.external("x")');
-  t.is(f(), 120);
-  t.is(f.signature(), '() => this.external("x")');
 });
 
 test('more cases of arrow functions depending on external nodes', t => {
@@ -247,48 +199,12 @@ test('more cases of arrow functions depending on external nodes', t => {
   t.is(f(42), 97 + 5 + 42);
 });
 
-test('renaming external node when a conflicting shorthand notation is present', t => {
-  const evaluator = parser.parse('{x}');
-  t.deepEqual(parser.dependencies(), new Set(['x']));
-  t.deepEqual(evaluator(), {x: 120});
-  parser.rename('x', 'yy');
-  t.is(parser.input, '{x:yy}');
-  t.deepEqual(evaluator(), {x: 121});
-  parser.rename('yy', 'zzz');
-  t.is(parser.input, '{x:zzz}');
-  t.deepEqual(evaluator(), {x: 122});
-});
-
-test('renaming external node when a conflicting arrow argument is present', t => {
-  const evaluator = parser.parse('a => ({a}).a + bb');
-  t.deepEqual(parser.dependencies(), new Set(['bb']));
-
-  let f = evaluator();
-  t.is(f(2), 100);
-  t.is(f.signature(), 'a => ({a:a}).a + this.external("bb")');
-
-  parser.rename('bb', 'a');
-  t.deepEqual(parser.dependencies(), new Set(['a']));
-  t.is(parser.input, 'bb => ({a:bb}).a + a');
-
-  t.is(f(2), 99);
-
-  f = evaluator();
-  // After recalculation the compiled internals stay the same, but the externals re-captured correctly
-  t.is(f.signature(), 'a => ({a:a}).a + this.external("bb")');
-  t.is(f(2), 99);
-
-  // Renaming it back brings the original formula back
-  parser.rename('a', 'bb');
-  t.deepEqual(parser.dependencies(), new Set(['bb']));
-  t.is(parser.input, 'a => ({a}).a + bb');
-});
 
 test('MemFn expression', t => {
   const evaluator = parser.parse('[1, 2].reduce((a, b) => a + b)');
   t.is(parser.dependencies().size, 0);
   t.is(evaluator(), 3);
-  t.is(compile(parser.root, true), '[1, 2].reduce(this.nodes[5].evaluator({}))');
+  t.is(compile(parser.root, true), '[1, 2].reduce(this.nodes[2].evaluator({}))');
   t.is(evaluator(), 3);
 });
 
