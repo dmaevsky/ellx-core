@@ -38,26 +38,20 @@ export const invokeSubs = (fn, ...args) => {
   ));
 }
 
-export function catchErrorStale({ subscribe }, mapError, mapStale) {
+export function catchErrorStale(evaluate, mapError, mapStale) {
+  const { subscribe } = subscribableAsyncFlat(evaluate, { name: `(${evaluate.toString()})` });
+
   return flatten({
-    subscrbe: (subscriber, onError, onStale) => subscribe(
+    subscribe: (subscriber, onError, onStale) => subscribe(
       subscriber,
-      mapError ? error => subscriber(mapError(error)) : onError,
+      mapError ? (e => isFlow(e) ? onError(e) : subscriber(mapError(e))) : onError,
       mapStale ? flow => subscriber(mapStale(flow)) : onStale
     )
   });
 }
 
-export const tryFn = (evaluate, mapError) => catchErrorStale(
-  subscribable(evaluate, { name: evaluate.toString() }),
-  mapError || (() => undefined)
-);
-
-export const awaitFn = (evaluate, mapStale) => catchErrorStale(
-  subscribableAsyncFlat(evaluate, { name: evaluate.toString() }),
-  null,
-  mapStale
-);
+export const tryFn = (evaluate, mapError) => catchErrorStale(evaluate, mapError || (() => undefined));
+export const awaitFn = (evaluate, mapStale) => catchErrorStale(evaluate, null, mapStale);
 
 function* pullFlow(it) {
   return pull(yield it);
