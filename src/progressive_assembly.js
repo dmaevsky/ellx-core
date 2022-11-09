@@ -3,6 +3,7 @@ import Grammar from 'rd-parse-jsexpr';
 import { isFlow } from 'conclure';
 import reservedWords from './reserved_words.js';
 import { binaryOp, unaryOp, transpile } from './transpile.js';
+import { tryFn, awaitFn } from './transpile_subs.js';
 import { isSubscribable, pull } from './pull.js';
 
 const parseFormula = Parser(Grammar);
@@ -22,7 +23,6 @@ const fromParts = (node, replacer) => {
   return result;
 }
 
-// Just assemble compiled code
 export const compile = (node, asRoot = false) => {
 
   if (!asRoot && node.evaluator) {
@@ -46,6 +46,10 @@ export const compile = (node, asRoot = false) => {
     result = `(${result})`;
   }
 
+  if (node.defer) {
+    result = `() => ${result}`;
+  }
+
   return result;
 }
 
@@ -67,15 +71,14 @@ const assembler = node => {
 export function progressiveAssembly(input, resolve) {
   const self = {
     external: resolve,
-    nodes: []
+    nodes: [],
+    try: tryFn,
+    await: awaitFn,
+    throw: e => { throw e; }
   };
 
   const reserved = new Set(reservedWords);
   const globals = globalThis;
-
-  const root = parseFormula(input);
-  precompile(root);
-
   const ids = new WeakMap();
 
   function getNodeId(node) {
@@ -85,10 +88,20 @@ export function progressiveAssembly(input, resolve) {
     return ids.get(node);
   }
 
-  function precompile(node, parent = null) {
-    Object.defineProperty(node, 'id', { get: () => getNodeId(node) })
+  const astRoot = parseFormula(input);
+  const root = precompile(astRoot);
 
-    const children = [];
+  function precompile(astNode, parent = null, pos = 0) {
+    const node = {
+      get id() { return getNodeId(node) },
+      parent,
+      type: astNode.type,
+      text: astNode.text,
+      pos: astNode.pos - pos,
+      namespace: parent ? parent.namespace : new Set(),
+    }
+
+    const subExpressions = [];
     const boundNames = [];
 
     const collectParts = tree => {
@@ -100,146 +113,118 @@ export function progressiveAssembly(input, resolve) {
             if (reserved.has(part.name)) {
               throw new Error(`Cannot use a reserved word ${part.name} as a parameter name`);
             }
-            boundNames.push(part);
+            boundNames.push({
+              pos: part.pos - pos,
+              text: part.text,
+              bindingName: true
+            });
           }
           else if (part.type) {
-            children.push(part);
+            subExpressions.push(part);
           }
           else collectParts(part);
         }
       }
     }
 
-    collectParts(node);
+    collectParts(astNode);
 
-    node.parts = [...children, ...boundNames];
-    node.parts.sort((a, b) => a.pos - b.pos);
-
-    node.children = children;
-    node.parent = parent;
-    node.namespace = parent ? parent.namespace : new Set();
-
-    if (node.type === 'ArrowFunction') {
+    if (astNode.type === 'ArrowFunction') {
       node.isArrowFn = true;
-      node.boundNames = boundNames.map(({ name }) => name);
+      node.boundNames = boundNames.map(({ text }) => text);
       node.namespace = Union(node.namespace, node.boundNames);
     }
-    else if (node.type === 'CallExpression' && node.callee.type === 'MemberExpression') {
-      node.callee.isMemFn = true;
-    }
-    else if (node.type === 'CallExpression' && node.callee.type === 'Identifier' && ['try', 'await'].includes(node.callee.name)) {
-      if (!node.arguments.length) {
-        throw new Error(`Empty ${node.callee.name} expression`);
-      }
-      node.arguments[0].catchErrors = true;
-    }
-    else if (node.type === 'NewExpression') {
-      node.ctor.isConstructor = true;
+    else if (astNode.type === 'CallExpression' && astNode.callee.type === 'MemberExpression') {
+      // The only modification to the original AST: will move this to the grammar later
+      astNode.callee.isMemFn = true;
+      node.isMemFnCall = true;
     }
 
-    for (let child of node.children) {
-      precompile(child, node);
-    }
+    node.children = subExpressions.map(x => precompile(x, node, astNode.pos));
 
-    for (let part of node.parts) part.pos -= node.pos;
+    node.parts = [...node.children, ...boundNames];
+    node.parts.sort((a, b) => a.pos - b.pos);
 
-    if (node.type === 'Identifier') {
-      if (node.name === 'throw') {
-        node.transpile = () => e => { throw e; };
+    if (astNode.type === 'Identifier') {
+      if (['throw', 'try', 'await'].includes(astNode.name)) {
+        node.precompiled = `this.${astNode.name}`;
       }
-      else if (node.name === 'try') {
-        node.transpile = () => ({ result, error }, catchClause) => {
-          if (!error) return result;
-          return catchClause && catchClause(error);
-        }
-      }
-      else if (node.name === 'await') {
-        node.transpile = () => ({ result, error }, staleClause) => ({
-          subscribe: subscriber => pull(error || result, value => {
-            if (isFlow(value)) {
-              try {
-                value = staleClause(value);
-              }
-              catch (error) {
-                value = error;
-              }
-            }
-            subscriber(value);
-          })
-        });
-      }
-      else if (node.name === 'arguments') {
+      else if (astNode.name === 'arguments') {
         let n = node;
         while (!n.boundNames && n.parent) n = n.parent;
 
         node.precompiled = `({ ${( n.boundNames || []).join(',')} })`;
       }
-      else if (reserved.has(node.name)) {
-        throw new Error(`Cannot refer to a reserved word ${node.name} as a dependency`);
+      else if (reserved.has(astNode.name)) {
+        throw new Error(`Cannot refer to a reserved word ${astNode.name} as a dependency`);
       }
 
-      if (reserved.has(node.name) || node.name in globals || node.namespace.has(node.name)) {
+      node.shortNotation = Boolean(astNode.shortNotation);
+
+      if (reserved.has(astNode.name) || astNode.name in globals || node.namespace.has(astNode.name)) {
         node.deps = new Set();
       }
       else {
         // If node.namespace does not include the name, then it is a dependency
-        node.deps = new Set([node.name]);
-        node.precompiled = `this.external(${JSON.stringify(node.name)})`;
+        node.deps = new Set([astNode.name]);
+        node.precompiled = `this.external(${JSON.stringify(astNode.name)})`;
 
-        if (node.shortNotation) {
-          node.precompiled = node.name + ':' + node.precompiled;
+        if (astNode.shortNotation) {
+          node.precompiled = astNode.name + ':' + node.precompiled;
         }
       }
     }
     else node.deps = Union(...node.children.map(child => child.deps));
 
-    if (['MemberExpression', 'CallExpression', 'NewExpression'].includes(node.type)) {
+    if (['MemberExpression', 'CallExpression', 'NewExpression'].includes(astNode.type)) {
       const op = assembler(node);
-      if (node.isMemFn) {
-        // The transpilation will be lifted by the node's CallExpression parent if possible
+
+      if (astNode.isMemFn) {
         node.transpile = transpile((c, ...a) => bind(op(c, ...a), c));
       }
       else JIT_transpile(node, transpile(op), a => isFlow(a) || isSubscribable(a));
+
+      if (astNode.type === 'CallExpression' && astNode.callee.type === 'Identifier' && ['try', 'await'].includes(astNode.callee.name)) {
+        if (node.children.length < 2) {
+          throw new Error(`Empty ${astNode.callee.name} expression`);
+        }
+        node.children[1].defer = true;
+        attachEvaluator(node.children[1]);
+      }
+
+      if (astNode.type === 'NewExpression') {
+        node.children[0].isConstructor = true;
+      }
     }
 
     const opOverload = {
       'UnaryExpression': unaryOp,
       'BinaryExpression': binaryOp
-    }[node.type];
+    }[astNode.type];
 
     const opWhiteList = ['~', '**', '*', '/', '%', '+', '-', '>>>', '<<', '>>', '<=', '>=', '<', '>', '==', '!=', '&', '^', '|'];
 
-    if (opOverload && opWhiteList.includes(node.operator)) {
-      JIT_transpile(node, opOverload(node.operator), arg => typeof arg === 'object' || typeof arg === 'function');
+    if (opOverload && opWhiteList.includes(astNode.operator)) {
+      JIT_transpile(node, opOverload(astNode.operator), arg => typeof arg === 'object' || typeof arg === 'function');
     }
 
-    if (!parent || node.isArrowFn || node.catchErrors) {
-      node.evaluator = progressiveEvaluator(node);
+    if (!parent || node.isArrowFn) {
+      attachEvaluator(node);
     }
+    return node;
   }
 
   // Only the root node and arrow function root nodes will have evaluators, non-removable
 
   function buildEvaluator(node) {
     const args = node.parent ? node.parent.namespace : [];
-    const evalFn = new Function(`{ ${[...args].join(',')} }`, 'return ' + compile(node, true)).bind(self);
-
-    if (!node.catchErrors) return evalFn;
-
-    return context => {
-      try {
-        return { result: evalFn(context) };
-      }
-      catch (error) {
-        return { error };
-      }
-    };
+    return new Function(`{ ${[...args].join(',')} }`, 'return ' + compile(node, true)).bind(self);
   }
 
-  function progressiveEvaluator(node) {
+  function attachEvaluator(node) {
     let evaluator = null;
 
-    return Object.assign((context = {}) => {
+    node.evaluator = (context = {}) => {
       if (!evaluator) {
         evaluator = buildEvaluator(node);
       }
@@ -265,9 +250,8 @@ export function progressiveAssembly(input, resolve) {
         return fn;
       }
       return result;
-    }, {
-      invalidate: () => evaluator = null
-    });
+    }
+    node.evaluator.invalidate = () => evaluator = null;
   }
 
   return root;
@@ -282,8 +266,8 @@ function JIT_transpile(node, op, shouldTranspile) {
   node.transpile = (...parts) => {
     if (!parts.some(shouldTranspile)) {
       delete node.transpile;
-      if (node.callee && node.callee.isMemFn) {
-        delete node.callee.transpile;
+      if (node.isMemFnCall) {
+        delete node.children[0].transpile;
       }
       invalidate(node);
     }

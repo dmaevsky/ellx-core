@@ -27,7 +27,7 @@ function withRenames(root) {
   for (let node of root.parts) {
     let replaced;
 
-    if (node.type === 'Identifier' || node.bindingType === 'SingleName') {
+    if (node.type === 'Identifier' || node.bindingName) {
       if (!renamed.has(node.text)) continue;
 
       replaced = renamed.get(node.text);
@@ -70,7 +70,7 @@ test('that external nodes are evaluated lazily when not inside ArrowFunction bod
   const root = progressiveAssembly('a > 100 ? () => x : () => y', resolve);
   const evaluator = root.evaluator;
 
-  const arrows = [root.consequent, root.alternate];
+  const arrows = [root.children[1], root.children[2]];
 
   let f = evaluator();
   t.is(compile(root, true), `this.external("a") > 100 ? this.nodes[${arrows[0].id}].evaluator({}) : this.nodes[${arrows[1].id}].evaluator({})`);

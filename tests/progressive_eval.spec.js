@@ -45,7 +45,7 @@ test('ArrowFunction', t => {
   t.deepEqual(root.deps, new Set(['c', 'x']));
 
   const outer = root.evaluator();
-  t.is(outer.signature(), `a => this.nodes[${root.result.id}].evaluator({a})`);
+  t.is(outer.signature(), `a => this.nodes[0].evaluator({a})`);
   t.deepEqual(outer.closure, {});
 
   const inner = outer(5);
@@ -102,7 +102,7 @@ test('CallExpression', t => {
   t.deepEqual(root.deps, new Set(['x', 'c']));
 
   t.is(root.evaluator(), 5 * 120 + 99 * 2);
-  t.is(compile(root, true), `this.nodes[${root.callee.id}].evaluator({})(...[5, this.external("c")], 2)`);
+  t.is(compile(root, true), `this.nodes[1].evaluator({})(...[5, this.external("c")], 2)`);
 });
 
 test('MemberExpression', t => {
@@ -128,7 +128,7 @@ test('using library functions', t => {
   t.deepEqual(root.deps, new Set(['range', 'x']));
 
   t.deepEqual(root.evaluator(), [121, 122]);
-  t.is(compile(root, true), `this.external("range")(1, 3).map(this.nodes[${root.arguments[0].id}].evaluator({}))`);
+  t.is(compile(root, true), `this.external("range")(1, 3).map(this.nodes[3].evaluator({}))`);
   t.deepEqual(root.evaluator(), [121, 122]);
 });
 
@@ -150,7 +150,7 @@ test('UnaryExpression', t => {
 
 test('ConditionalExpression', t => {
   const root = progressiveAssembly('x => x > a ? x - a : a - x', resolve);
-  t.is(root.result.type, 'ConditionalExpression');
+  t.is(root.children[0].type, 'ConditionalExpression');
   t.deepEqual(root.deps, new Set(['a']));
 
   const f = root.evaluator();
