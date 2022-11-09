@@ -1,6 +1,6 @@
 import test from 'ava';
 import { writable } from 'tinyx';
-import { calcGraph } from '../src/index.js';
+import { calcGraph, calcNode } from '../src/calc_node.js';
 import { flatten } from '../src/pull.js';
 
 function collector() {
@@ -53,11 +53,9 @@ test('Transpile subscribables', async t => {
   const [values, collect] = collector();
   const s = writable(5);
 
-  const cg = calcGraph({
-    sq: 's * s'
-  }, name => ({ s }[name]));
+  const sq = calcNode('s * s', name => ({ s }[name]));
 
-  const off = cg.sq.subscribe(...collect);
+  const off = sq.subscribe(...collect);
 
   s.set(6);
 
@@ -79,11 +77,9 @@ test('Transpile flows resolving to subscribables', async t => {
     return s;
   }
 
-  const cg = calcGraph({
-    sq: 's * s'
-  }, name => name === 's' && f());
+  const sq = calcNode('s * s', name => name === 's' && f());
 
-  const off = cg.sq.subscribe(...collect);
+  const off = sq.subscribe(...collect);
   await p;
 
   s.set(6);
@@ -103,11 +99,9 @@ test('Transpile subscribables resolving to flows resolving to subscribables', as
     return s[idx];
   });
 
-  const cg = calcGraph({
-    sq: 'f(0) * f(1)'
-  }, name => name === 'f' && f);
+  const sq = calcNode('f(0) * f(1)', name => name === 'f' && f);
 
-  const off = cg.sq.subscribe(...collect);
+  const off = sq.subscribe(...collect);
   await p;
 
   s[0].update(v => v + 1);

@@ -2,7 +2,11 @@
   "name": "@ellx/core",
   "version": "0.4.0",
   "description": "Ellx core",
-  "main": "src/index.js",
+  "main": "src/calc_node.js",
+  "exports": {
+    ".": "./src/calc_node.js",
+    "./map": "./src/calc_map.js"
+  },
   "type": "module",
   "directories": {
     "test": "tests"
