@@ -1,7 +1,6 @@
 import { isFlow } from 'conclure';
 import { all } from 'conclure/combinators';
-import { isSubscribable } from './pull.js';
-import { invokeSubs } from './transpile_subs.js';
+import { isSubscribable, invokeSubs } from './transpile_subs.js';
 
 export function* invoke(fn, ...args) {
   args = yield all(args);

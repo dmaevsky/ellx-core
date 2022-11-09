@@ -3,8 +3,7 @@ import Grammar from 'rd-parse-jsexpr';
 import { isFlow } from 'conclure';
 import reservedWords from './reserved_words.js';
 import { binaryOp, unaryOp, transpile } from './transpile.js';
-import { tryFn, awaitFn } from './transpile_subs.js';
-import { isSubscribable, pull } from './pull.js';
+import { isSubscribable, tryFn, awaitFn } from './transpile_subs.js';
 
 const parseFormula = Parser(Grammar);
 const Union = (...sets) => sets.reduce((acc, s) => (s ? new Set([...acc, ...s]) : acc), new Set());

@@ -1,7 +1,7 @@
 import test from 'ava';
 import { writable } from 'tinyx';
 import { calcGraph, calcNode } from '../src/calc_node.js';
-import { flatten } from '../src/pull.js';
+import { flatten } from '../src/transpile_subs.js';
 
 function collector() {
   const results = [];

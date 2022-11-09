@@ -1,7 +1,30 @@
 import { isFlow } from 'conclure';
 import { toObservable, subscribable } from 'quarx/adapters';
 import { subscribableAsync } from 'quarx-async';
-import { isSubscribable, flatten } from './pull.js';
+
+export const isSubscribable = obj => !!obj && (typeof obj === 'object' || typeof obj === 'function') && typeof obj.subscribe === 'function';
+
+export const flatten = ({ subscribe }) => ({
+  subscribe: (subscriber, ...callbacks) => {
+    let inner;
+    const outer = subscribe(value => {
+      if (inner) inner();
+
+      if (isSubscribable(value)) {
+        inner = flatten(value).subscribe(subscriber, ...callbacks);
+      }
+      else {
+        inner = null;
+        subscriber(value);
+      }
+    }, ...callbacks);
+
+    return () => {
+      if (inner) inner();
+      if (outer) outer();
+    };
+  }
+});
 
 const obsKey = Symbol.for('@@quarx-observable');
 const getObs = subs => subs[obsKey] || (subs[obsKey] = toObservable(subs));
