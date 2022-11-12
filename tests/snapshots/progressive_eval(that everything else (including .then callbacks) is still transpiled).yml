@@ -1,0 +1,1 @@
+- this.nodes[0].transpile(this.nodes[1].evaluator({}),Promise.resolve(42))

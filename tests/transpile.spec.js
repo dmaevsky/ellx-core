@@ -1,3 +1,6 @@
-import test from 'ava';
+import test from 'node:test';
+import assert from 'node:assert/strict';
 
-test.todo('check (a + b) * (a + c) where a is an iterator');
+test('check (a + b) * (a + c) where a is an iterator', { todo: 1 }, () => {
+
+});

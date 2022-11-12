@@ -1,16 +1,18 @@
-import test from 'ava';
+import test from 'node:test';
+import assert from 'node:assert/strict';
+
 import { calcNode, calcGraph } from '../src/calc_node.js';
 
-test('throw/try', t => {
+test('throw/try', () => {
   const aw = calcNode('try(throw("boom"), e => e.toUpperCase())', () => null);
 
   let result;
   aw.subscribe(r => result = r);
 
-  t.is(result, 'BOOM');
+  assert.equal(result, 'BOOM');
 });
 
-test('await promise', async t => {
+test('await promise', async () => {
   const p = Promise.resolve(42);
 
   const aw = calcNode('await(p, () => 55)', () => p);
@@ -18,12 +20,12 @@ test('await promise', async t => {
   const results = [];
   aw.subscribe(r => results.push(r), e => results.push('ERROR:' + e), () => results.push('STALE'));
 
-  t.deepEqual(results, [55]);
+  assert.deepEqual(results, [55]);
   await p;
-  t.deepEqual(results, [55, 42]);
+  assert.deepEqual(results, [55, 42]);
 });
 
-test('try promise', async t => {
+test('try promise', async () => {
   const p = Promise.resolve(42);
 
   const aw = calcNode('try(p, () => 55)', () => p);
@@ -31,12 +33,12 @@ test('try promise', async t => {
   const results = [];
   aw.subscribe(r => results.push(r), e => results.push('ERROR:' + e), () => results.push('STALE'));
 
-  t.deepEqual(results, ['STALE']);
+  assert.deepEqual(results, ['STALE']);
   await p;
-  t.deepEqual(results, ['STALE', 42]);
+  assert.deepEqual(results, ['STALE', 42]);
 });
 
-test('try does not catch stales', async t => {
+test('try does not catch stales', async () => {
   const p = Promise.resolve(42);
 
   const cg = calcGraph({
@@ -47,12 +49,12 @@ test('try does not catch stales', async t => {
   const results = [];
   cg.aw.subscribe(r => results.push(r), e => results.push('ERROR:' + e), () => results.push('STALE'));
 
-  t.deepEqual(results, ['STALE']);
+  assert.deepEqual(results, ['STALE']);
   await p;
-  t.deepEqual(results, ['STALE', 42]);
+  assert.deepEqual(results, ['STALE', 42]);
 });
 
-test('await catches stales', async t => {
+test('await catches stales', async () => {
   const p = Promise.resolve(42);
 
   const cg = calcGraph({
@@ -63,12 +65,12 @@ test('await catches stales', async t => {
   const results = [];
   cg.aw.subscribe(r => results.push(r), e => results.push('ERROR:' + e), () => results.push('STALE'));
 
-  t.deepEqual(results, [55]);
+  assert.deepEqual(results, [55]);
   await p;
-  t.deepEqual(results, [55, 42]);
+  assert.deepEqual(results, [55, 42]);
 });
 
-test('try catches rejected flows', async t => {
+test('try catches rejected flows', async () => {
   const p = Promise.reject('BOOM');
 
   const aw = calcNode('try(p, () => 55)', () => p);
@@ -76,12 +78,12 @@ test('try catches rejected flows', async t => {
   const results = [];
   aw.subscribe(r => results.push(r), e => results.push('ERROR:' + e), () => results.push('STALE'));
 
-  t.deepEqual(results, ['STALE']);
+  assert.deepEqual(results, ['STALE']);
   await p.catch(() => null);
-  t.deepEqual(results, ['STALE', 55]);
+  assert.deepEqual(results, ['STALE', 55]);
 });
 
-test('await does not catch rejected flows', async t => {
+test('await does not catch rejected flows', async () => {
   const p = Promise.reject('BOOM');
 
   const aw = calcNode('await(p, () => 55)', () => p);
@@ -89,7 +91,7 @@ test('await does not catch rejected flows', async t => {
   const results = [];
   aw.subscribe(r => results.push(r), e => results.push('ERROR:' + e), () => results.push('STALE'));
 
-  t.deepEqual(results, [55]);
+  assert.deepEqual(results, [55]);
   await p.catch(() => null);
-  t.deepEqual(results, [55, 'ERROR:BOOM']);
+  assert.deepEqual(results, [55, 'ERROR:BOOM']);
 });

@@ -1,0 +1,5 @@
+- this.nodes[0].transpile(this.external("sum"),this.nodes[1].transpile(this.external("delayed"),1,[
+  this.nodes[2].transpile(this.external("delayed"),1,55),
+  this.nodes[3].transpile(this.external("delayed"),1,33) ]))
+- this.nodes[0].transpile(this.external("sum"),this.external("delayed")(1, [
+  this.external("delayed")(1, 55), this.external("delayed")(1, 33) ]))

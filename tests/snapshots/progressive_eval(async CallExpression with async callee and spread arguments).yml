@@ -1,0 +1,4 @@
+- this.nodes[0].transpile(this.nodes[1].transpile(this.nodes[2].transpile(this.external("delayed"),1,this.nodes[3].evaluator({}))),this.nodes[4].transpile(this.external("range"),1,3),this.nodes[5].transpile(this.external("range"),4,6))
+- this.nodes[0].transpile(this.nodes[1].transpile(this.external("delayed")(1,
+  this.nodes[3].evaluator({}))),this.external("range")(1,
+  3),this.external("range")(4, 6))

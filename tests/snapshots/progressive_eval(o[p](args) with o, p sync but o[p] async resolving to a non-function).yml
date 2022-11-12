@@ -1,0 +1,6 @@
+- 'this.nodes[0].transpile(this.nodes[1].transpile(({ f:
+  this.nodes[2].transpile(this.nodes[3].transpile(this.external("delayed"),1,this.nodes[4].evaluator({})))
+  })),0)'
+- 'this.nodes[0].transpile(({ f:
+  this.nodes[2].transpile(this.external("delayed")(1,
+  this.nodes[4].evaluator({}))) }).f,0)'

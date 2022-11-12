@@ -8,9 +8,6 @@
     "./map": "./src/calc_map.js"
   },
   "type": "module",
-  "directories": {
-    "test": "tests"
-  },
   "dependencies": {
     "conclure": "^2, >=2.2.0",
     "quarx": "^5, >=5.4.1",
@@ -19,16 +16,12 @@
     "rd-parse-jsexpr": "^3.0.0"
   },
   "devDependencies": {
-    "ava": "^4.3.3",
-    "tinyx": "^2.2.0"
+    "tinyx": "^2.2.0",
+    "usnap": "^0.1.0",
+    "utap": "^0.1.2"
   },
   "scripts": {
-    "test": "ava -v"
-  },
-  "ava": {
-    "files": [
-      "tests/*.spec.js"
-    ]
+    "test": "find tests -type f -name '*.spec.js' -exec echo \\# utap-src:{} \\; -exec node {} \\; | utap"
   },
   "repository": {
     "type": "git",

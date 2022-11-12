@@ -1,4 +1,6 @@
-import test from 'ava';
+import test from 'node:test';
+import assert from 'node:assert/strict';
+
 import { writable } from 'tinyx';
 import { calcGraph, calcNode } from '../src/calc_node.js';
 import { flatten } from '../src/transpile_subs.js';
@@ -14,7 +16,7 @@ function collector() {
   return [results, collect];
 }
 
-test('A simple subscribable', t => {
+test('A simple subscribable', () => {
   const store = writable(42);
 
   const cg = calcGraph({
@@ -25,13 +27,13 @@ test('A simple subscribable', t => {
   let plus5;
   const off = cg.plus5.subscribe(v => plus5 = v);
 
-  t.is(plus5, 47);
+  assert.equal(plus5, 47);
   store.set(55);
-  t.is(plus5, 60);
+  assert.equal(plus5, 60);
   off();
 });
 
-test('Flatten subscribables', t => {
+test('Flatten subscribables', () => {
   const [values, collect] = collector();
 
   const s1 = writable(1);
@@ -44,12 +46,12 @@ test('Flatten subscribables', t => {
   s.set(s2);
   s2.set(20);
 
-  t.deepEqual(values, [1, 10, 2, 20]);
+  assert.deepEqual(values, [1, 10, 2, 20]);
 
   off();
 });
 
-test('Transpile subscribables', async t => {
+test('Transpile subscribables', async () => {
   const [values, collect] = collector();
   const s = writable(5);
 
@@ -63,11 +65,11 @@ test('Transpile subscribables', async t => {
   s.set(p);
   await p;
 
-  t.deepEqual(values, [25, 36, 'STALE', 49]);
+  assert.deepEqual(values, [25, 36, 'STALE', 49]);
   off();
 });
 
-test('Transpile flows resolving to subscribables', async t => {
+test('Transpile flows resolving to subscribables', async () => {
   const [values, collect] = collector();
   const s = writable(5);
   const p = Promise.resolve(7);
@@ -85,11 +87,11 @@ test('Transpile flows resolving to subscribables', async t => {
   s.set(6);
   s.set(p);
 
-  t.deepEqual(values, ['STALE', 25, 36, 49]);
+  assert.deepEqual(values, ['STALE', 25, 36, 49]);
   off();
 });
 
-test('Transpile subscribables resolving to flows resolving to subscribables', async t => {
+test('Transpile subscribables resolving to flows resolving to subscribables', async () => {
   const [values, collect] = collector();
   const s = [writable(5), writable(6)];
   const p = Promise.resolve(7);
@@ -107,6 +109,6 @@ test('Transpile subscribables resolving to flows resolving to subscribables', as
   s[0].update(v => v + 1);
   s[1].update(v => v + 1);
 
-  t.deepEqual(values, ['STALE', 30, 36, 42]);
+  assert.deepEqual(values, ['STALE', 30, 36, 42]);
   off();
 });

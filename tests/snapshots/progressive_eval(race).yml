@@ -1,0 +1,6 @@
+- this.nodes[0].transpile(this.nodes[1].evaluator({}),this.nodes[2].transpile(this.external("race"),[this.nodes[3].transpile(this.nodes[4].transpile(this.external("delayed"),10,this.nodes[5].evaluator({}))),
+  this.nodes[6].transpile(this.nodes[7].transpile(this.external("delayed"),1,this.nodes[8].evaluator({})))]))
+- this.nodes[0].transpile(this.nodes[1].evaluator({}),this.external("race")([this.nodes[3].transpile(this.external("delayed")(10,
+  this.nodes[5].evaluator({}))),
+  this.nodes[6].transpile(this.external("delayed")(1,
+  this.nodes[8].evaluator({})))]))
