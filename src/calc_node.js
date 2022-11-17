@@ -4,9 +4,10 @@ import { progressiveAssembly } from './progressive_assembly.js';
 import { subscribableAsyncFlat } from './transpile_subs.js';
 
 export function calcNode(formula, resolve, options = {}) {
-  const { name = `(${formula})` } = options;
+  const { name = 'calcNode' } = options;
 
-  const evaluate = progressiveAssembly(String(formula), resolve).evaluator;
+  const evaluate = typeof formula === 'function' ? formula :
+    progressiveAssembly(formula, resolve).evaluator;
 
   const subs = subscribableAsyncFlat(evaluate, { name: `(eval ${name})` });
   const obs = toObservable(subs, { name: `(currentValue ${name})` });

@@ -6,6 +6,8 @@ import { progressiveAssembly, compile } from '../src/progressive_assembly.js';
 const renamed = new Map();
 const resolve = name => (renamed.get(name) || name).charCodeAt(0);
 
+const build = formula => progressiveAssembly(formula, resolve);
+
 function rename(oldName, newName) {
   if (renamed.has(oldName)) {
     const original = renamed.get(oldName);
@@ -47,7 +49,7 @@ function withRenames(root) {
 
 test('renaming external node', () => {
   renamed.clear();
-  const root = progressiveAssembly('x * (x - y)', resolve);
+  const root = build('x * (x - y)');
   const evaluator = root.evaluator;
 
   assert.equal(evaluator(), -120);
@@ -69,7 +71,7 @@ test('renaming external node', () => {
 
 test('that external nodes are evaluated lazily when not inside ArrowFunction body', () => {
   renamed.clear();
-  const root = progressiveAssembly('a > 100 ? () => x : () => y', resolve);
+  const root = build('a > 100 ? () => x : () => y');
   const evaluator = root.evaluator;
 
   const arrows = [root.children[1], root.children[2]];
@@ -90,7 +92,7 @@ test('that external nodes are evaluated lazily when not inside ArrowFunction bod
 
 test('renaming external node when a conflicting shorthand notation is present', () => {
   renamed.clear();
-  const root = progressiveAssembly('{x}', resolve);
+  const root = build('{x}');
   const evaluator = root.evaluator;
 
   assert.deepEqual(root.deps, new Set(['x']));
@@ -105,7 +107,7 @@ test('renaming external node when a conflicting shorthand notation is present', 
 
 test('renaming external node when a conflicting arrow argument is present', () => {
   renamed.clear();
-  const root = progressiveAssembly('a => ({a}).a + bb', resolve);
+  const root = build('a => ({a}).a + bb');
   const evaluator = root.evaluator;
 
   assert.deepEqual(root.deps, new Set(['bb']));

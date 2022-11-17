@@ -5,7 +5,8 @@ import reservedWords from './reserved_words.js';
 import { binaryOp, unaryOp, transpile } from './transpile.js';
 import { isSubscribable, tryFn, awaitFn } from './transpile_subs.js';
 
-const parseFormula = Parser(Grammar);
+export const parseFormula = Parser(Grammar);
+
 const Union = (...sets) => sets.reduce((acc, s) => (s ? new Set([...acc, ...s]) : acc), new Set());
 
 const bind = (f, o) => f && typeof f.bind === 'function' ? f.bind(o) : f;
@@ -87,7 +88,7 @@ export function progressiveAssembly(input, resolve) {
     return ids.get(node);
   }
 
-  const astRoot = parseFormula(input);
+  const astRoot = typeof input === 'string' ? parseFormula(input) : input;
   const root = precompile(astRoot);
 
   function precompile(astNode, parent = null, pos = 0) {

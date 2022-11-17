@@ -12,8 +12,10 @@ const resolve = name => {
   return name.charCodeAt(0);
 }
 
+const build = formula => progressiveAssembly(formula, resolve);
+
 test('Identifier, Literal, BinaryExpression', () => {
-  const root = progressiveAssembly('a + 42', resolve);
+  const root = build('a + 42');
 
   // Not evaluated yet, so expect the binary + to be deferred
   assert.equal(compile(root, true),
@@ -27,12 +29,12 @@ test('Identifier, Literal, BinaryExpression', () => {
 });
 
 test('exponentiation operator', () => {
-  const root = progressiveAssembly('2 ** 3 ** 2', resolve);
+  const root = build('2 ** 3 ** 2');
   assert.equal(root.evaluator(), 512);
 });
 
 test('string literals concatenation with binary +', () => {
-  const root = progressiveAssembly('"a" + "b"', resolve);
+  const root = build('"a" + "b"');
   assert.equal(compile(root, true),
     'this.nodes[0].transpile("a","b")'
   );
@@ -41,7 +43,7 @@ test('string literals concatenation with binary +', () => {
 });
 
 test('ArrowFunction', () => {
-  const root = progressiveAssembly('a => (b = c) => a * x + b', resolve);
+  const root = build('a => (b = c) => a * x + b');
 
   assert.equal(root.type, 'ArrowFunction');
   assert.deepEqual(root.deps, new Set(['c', 'x']));
@@ -62,7 +64,7 @@ test('ArrowFunction', () => {
 });
 
 test('ArrayLiteral, EmptyElement, SpreadElement, and rest parameter', () => {
-  const root = progressiveAssembly('(a, ...z) => [...z, , a]', resolve);
+  const root = build('(a, ...z) => [...z, , a]');
   assert.equal(root.deps.size, 0);
 
   const f = root.evaluator();
@@ -71,7 +73,7 @@ test('ArrayLiteral, EmptyElement, SpreadElement, and rest parameter', () => {
 });
 
 test('ArrowFunction with destructuring', () => {
-  const root = progressiveAssembly('([{y: {z1 = 5, ...z2} = {x:6}}, z3, ...z4]) => (z1 * z2.x) * z3 * z4.length', resolve);
+  const root = build('([{y: {z1 = 5, ...z2} = {x:6}}, z3, ...z4]) => (z1 * z2.x) * z3 * z4.length');
   const f = root.evaluator();
 
   assert.equal(f([{},2,null,null]), 120);
@@ -81,7 +83,7 @@ test('CompoundExpression', () => {
   const args = [];
   global.__ellxSpy = a => args.push(a);
 
-  const root = progressiveAssembly('(__ellxSpy(555), 42)', resolve);
+  const root = build('(__ellxSpy(555), 42)');
   assert.equal(root.type, 'CompoundExpression');
   assert.equal(root.deps.size, 0);
 
@@ -91,7 +93,7 @@ test('CompoundExpression', () => {
 });
 
 test('ObjectLiteral', () => {
-  const root = progressiveAssembly('{ foo: "bar", [x]: y }', resolve);
+  const root = build('{ foo: "bar", [x]: y }');
   assert.equal(root.type, 'ObjectLiteral');
   assert.deepEqual(root.deps, new Set(['x', 'y']));
   assert.deepEqual(root.evaluator(), { foo: 'bar', 120: 121 });
@@ -99,7 +101,7 @@ test('ObjectLiteral', () => {
 });
 
 test('CallExpression', () => {
-  const root = progressiveAssembly('((a, b, c) => a * x + b * c)(...[5, c], 2)', resolve);
+  const root = build('((a, b, c) => a * x + b * c)(...[5, c], 2)');
   assert.equal(root.type, 'CallExpression');
   assert.deepEqual(root.deps, new Set(['x', 'c']));
 
@@ -108,25 +110,25 @@ test('CallExpression', () => {
 });
 
 test('MemberExpression', () => {
-  const root = progressiveAssembly('({x}).x', resolve);
+  const root = build('({x}).x');
   assert.equal(root.type, 'MemberExpression');
   assert.deepEqual(root.deps, new Set(['x']));
   assert.equal(root.evaluator(), 120);
   assert.equal(compile(root, true), '({x:this.external("x")}).x');
 
-  const root2 = progressiveAssembly('(o => o.x * o["y"])({x,y})', resolve);
+  const root2 = build('(o => o.x * o["y"])({x,y})');
   assert.equal(root2.evaluator(), 120 * 121);
 });
 
 test('MemberExpression with a compiled property', () => {
-  const root = progressiveAssembly('({xy})["x" + "y"]', resolve);
+  const root = build('({xy})["x" + "y"]');
   assert.equal(root.evaluator(), 120);
   assert.equal(compile(root, true), '({xy:this.external("xy")})["x" + "y"]');
   assert.equal(root.evaluator(), 120);
 });
 
 test('using library functions', () => {
-  const root = progressiveAssembly('range(1, 3).map(i => i + x)', resolve);
+  const root = build('range(1, 3).map(i => i + x)');
   assert.deepEqual(root.deps, new Set(['range', 'x']));
 
   assert.deepEqual(root.evaluator(), [121, 122]);
@@ -135,7 +137,7 @@ test('using library functions', () => {
 });
 
 test('NewExpression', () => {
-  const root = progressiveAssembly('new Array(3)', resolve);
+  const root = build('new Array(3)');
   assert.equal(root.type, 'NewExpression');
   assert.equal(root.deps.size, 0);
   assert.deepEqual(root.evaluator(), [,,,]);
@@ -143,7 +145,7 @@ test('NewExpression', () => {
 });
 
 test('UnaryExpression', () => {
-  const root = progressiveAssembly('typeof +"42"', resolve);
+  const root = build('typeof +"42"');
   assert.equal(root.type, 'UnaryExpression');
   assert.equal(root.deps.size, 0);
   assert.equal(root.evaluator(), 'number');
@@ -151,7 +153,7 @@ test('UnaryExpression', () => {
 });
 
 test('ConditionalExpression', () => {
-  const root = progressiveAssembly('x => x > a ? x - a : a - x', resolve);
+  const root = build('x => x > a ? x - a : a - x');
   assert.equal(root.children[0].type, 'ConditionalExpression');
   assert.deepEqual(root.deps, new Set(['a']));
 
@@ -167,7 +169,7 @@ test('ConditionalExpression', () => {
 });
 
 test('transpilation of UnaryExpression', () => {
-  const root = progressiveAssembly('~math.complex(1,2)', resolve);
+  const root = build('~math.complex(1,2)');
   assert.equal(root.type, 'UnaryExpression');
   assert.equal(root.deps.size, 1);
   assert.deepEqual(root.evaluator(), math.complex(1, -2));
@@ -176,7 +178,7 @@ test('transpilation of UnaryExpression', () => {
 });
 
 test('transpilation of BinaryExpression', () => {
-  const root = progressiveAssembly('math.complex(1,2) * math.complex(1,-2)', resolve);
+  const root = build('math.complex(1,2) * math.complex(1,-2)');
   assert.equal(root.type, 'BinaryExpression');
   assert.equal(root.deps.size, 1);
   assert.deepEqual(root.evaluator(), math.complex(5, 0));
@@ -185,24 +187,24 @@ test('transpilation of BinaryExpression', () => {
 });
 
 test('more awesome transpilation', () => {
-  const root = progressiveAssembly('(x => x * ~x)(math.complex(2,3))', resolve);
+  const root = build('(x => x * ~x)(math.complex(2,3))');
   assert.deepEqual(root.evaluator(), math.complex(13, 0));
 });
 
 test('Fibonacci numbers sequence generation', () => {
-  const root = progressiveAssembly('range(0, 5).reduce(acc => acc.concat(acc[acc.length-1] + acc[acc.length-2]), [1,1])', resolve);
+  const root = build('range(0, 5).reduce(acc => acc.concat(acc[acc.length-1] + acc[acc.length-2]), [1,1])');
   assert.deepEqual(root.evaluator(), [1, 1, 2, 3, 5, 8, 13]);
 });
 
 test('more cases of arrow functions depending on external nodes', () => {
-  const root = progressiveAssembly('x => a + (a => a + x)(5)', resolve);
+  const root = build('x => a + (a => a + x)(5)');
   const f = root.evaluator();
   assert.equal(f(42), 97 + 5 + 42);
 });
 
 
 test('MemFn expression', () => {
-  const root = progressiveAssembly('[1, 2].reduce((a, b) => a + b)', resolve);
+  const root = build('[1, 2].reduce((a, b) => a + b)');
   assert.equal(root.deps.size, 0);
   assert.equal(root.evaluator(), 3);
   assert.equal(compile(root, true), '[1, 2].reduce(this.nodes[2].evaluator({}))');
@@ -210,13 +212,13 @@ test('MemFn expression', () => {
 });
 
 test('String interpolation', () => {
-  const root = progressiveAssembly('`a + b is ${a + b}!`', resolve);
+  const root = build('`a + b is ${a + b}!`');
   assert.deepEqual(root.deps, new Set(['a', 'b']));
   assert.equal(root.evaluator(), `a + b is ${97 + 98}!`);
 });
 
 test('arguments reserved word', () => {
-  const root = progressiveAssembly('({ re, im = 0 } = math.complex(1, 1)) => arguments', resolve);
+  const root = build('({ re, im = 0 } = math.complex(1, 1)) => arguments');
   assert.deepEqual(root.deps, new Set(['math']));
 
   const fn = root.evaluator();
@@ -226,7 +228,7 @@ test('arguments reserved word', () => {
 });
 
 test('initializers depending on previous args', () => {
-  const root = progressiveAssembly('({a} = {a:42}, b = a * 2) => arguments', resolve)
+  const root = build('({a} = {a:42}, b = a * 2) => arguments', resolve)
   assert.equal(root.deps.size, 0);
 
   const fn = root.evaluator();
@@ -234,7 +236,7 @@ test('initializers depending on previous args', () => {
 });
 
 test('arguments with nested arrow functions', () => {
-  const root = progressiveAssembly('a => b => arguments', resolve)
+  const root = build('a => b => arguments', resolve)
   assert.equal(root.deps.size, 0);
 
   const fn = root.evaluator();
