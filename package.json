@@ -19,7 +19,7 @@
   "devDependencies": {
     "tinyx": "^2.2.0",
     "usnap": "^0.1.0",
-    "utap": "^0.1.2"
+    "utap": "^0.1.3"
   },
   "scripts": {
     "test": "find tests -type f -name '*.spec.js' -exec echo \\# utap-src:{} \\; -exec node {} \\; | utap"
