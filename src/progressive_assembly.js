@@ -2,7 +2,7 @@ import Parser from 'rd-parse';
 import Grammar from 'rd-parse-jsexpr';
 import { isFlow } from 'conclure';
 import reservedWords from './reserved_words.js';
-import { binaryOp, unaryOp, transpile } from './transpile.js';
+import { binaryOp, unaryOp, transpile, partialTranspile } from './transpile.js';
 import { isSubscribable, tryFn, awaitFn } from './transpile_subs.js';
 
 export const parseFormula = Parser(Grammar);
@@ -15,7 +15,9 @@ const fromParts = (node, replacer) => {
   let pos = 0, result = '', count = 0;
 
   for (let child of node.children) {
-    result += node.text.slice(pos, child.pos) + replacer(child, count++);
+    const replaced = (child.shortNotation ? child.text + ':' : '') + replacer(child, count++);
+
+    result += node.text.slice(pos, child.pos) + replaced;
     pos = child.pos + child.text.length;
   }
 
@@ -88,6 +90,11 @@ export function progressiveAssembly(input, resolve) {
     return ids.get(node);
   }
 
+  // Flags: probably will move this to the grammar later
+  // Using WeakSet not to mutate the original AST
+  const isMemFn = new WeakSet();
+  const isSpreadElement = new WeakSet();
+
   const astRoot = typeof input === 'string' ? parseFormula(input) : input;
   const root = precompile(astRoot);
 
@@ -121,6 +128,8 @@ export function progressiveAssembly(input, resolve) {
           }
           else if (part.type) {
             subExpressions.push(part);
+
+            if (p === 'spread') isSpreadElement.add(part);
           }
           else collectParts(part);
         }
@@ -135,12 +144,15 @@ export function progressiveAssembly(input, resolve) {
       node.namespace = Union(node.namespace, node.boundNames);
     }
     else if (astNode.type === 'CallExpression' && astNode.callee.type === 'MemberExpression') {
-      // The only modification to the original AST: will move this to the grammar later
-      astNode.callee.isMemFn = true;
+      isMemFn.add(astNode.callee);
       node.isMemFnCall = true;
     }
 
-    node.children = subExpressions.map(x => precompile(x, node, astNode.pos));
+    node.children = subExpressions.map(x => {
+      const child = precompile(x, node, astNode.pos);
+      if (isSpreadElement.has(x)) child.isSpreadElement = true;
+      return child;
+    });
 
     node.parts = [...node.children, ...boundNames];
     node.parts.sort((a, b) => a.pos - b.pos);
@@ -168,10 +180,6 @@ export function progressiveAssembly(input, resolve) {
         // If node.namespace does not include the name, then it is a dependency
         node.deps = new Set([astNode.name]);
         node.precompiled = `this.external(${JSON.stringify(astNode.name)})`;
-
-        if (astNode.shortNotation) {
-          node.precompiled = astNode.name + ':' + node.precompiled;
-        }
       }
     }
     else node.deps = Union(...node.children.map(child => child.deps));
@@ -179,7 +187,7 @@ export function progressiveAssembly(input, resolve) {
     if (['MemberExpression', 'CallExpression', 'NewExpression'].includes(astNode.type)) {
       const op = assembler(node);
 
-      if (astNode.isMemFn) {
+      if (isMemFn.has(astNode)) {
         node.transpile = transpile((c, ...a) => bind(op(c, ...a), c));
       }
       else JIT_transpile(node, transpile(op), a => isFlow(a) || isSubscribable(a));
@@ -194,6 +202,15 @@ export function progressiveAssembly(input, resolve) {
 
       if (astNode.type === 'NewExpression') {
         node.children[0].isConstructor = true;
+      }
+    }
+    else if (['ArrayLiteral', 'ObjectLiteral'].includes(astNode.type)) {
+      const preventTranspile = node.children.map(child => !child.isSpreadElement);
+      const op = assembler(node);
+
+      const transpiled = partialTranspile(op, preventTranspile);
+      if (transpiled !== op) {
+        JIT_transpile(node, transpiled, (a, idx) => !preventTranspile[idx] && (isFlow(a) || isSubscribable(a)));
       }
     }
 

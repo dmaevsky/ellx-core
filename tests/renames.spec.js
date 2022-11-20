@@ -114,7 +114,7 @@ test('renaming external node when a conflicting arrow argument is present', () =
 
   let f = evaluator();
   assert.equal(f(2), 100);
-  assert.equal(f.signature(), 'a => ({a}).a + this.external("bb")');
+  assert.equal(f.signature(), 'a => ({a:a}).a + this.external("bb")');
 
   rename('bb', 'a');
   assert.equal(withRenames(root), 'bb => ({a:bb}).a + a');
@@ -123,7 +123,7 @@ test('renaming external node when a conflicting arrow argument is present', () =
 
   f = evaluator();
   // After recalculation the compiled internals stay the same, but the externals re-captured correctly
-  assert.equal(f.signature(), 'a => ({a}).a + this.external("bb")');
+  assert.equal(f.signature(), 'a => ({a:a}).a + this.external("bb")');
   assert.equal(f(2), 99);
 
   // Renaming it back brings the original formula back

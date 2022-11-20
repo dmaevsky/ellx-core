@@ -21,6 +21,31 @@ export const transpile = fn => {
   return transpiled;
 }
 
+const splitArgs = (args, pattern) => {
+  const left = [], right = [];
+  pattern.forEach((b, i) => (b ? left : right).push(args[i]));
+  return [left, right];
+}
+
+const joinArgs = (left, right, pattern) => {
+  const args = [];
+  let il = 0, ir = 0;
+  pattern.forEach((b, i) => args[i] = b ? left[il++] : right[ir++]);
+  return args;
+}
+
+export const partialTranspile = (fn, pattern) => {
+  if (pattern.every(b => b)) return fn;
+  if (pattern.every(b => !b)) return transpile(fn);
+
+  const partial = (...left) => transpile((...right) => fn(...joinArgs(left, right, pattern)));
+
+  return (...args) => {
+    const [left, right] = splitArgs(args, pattern);
+    return partial(...left)(...right);
+  }
+}
+
 export const unaryOp = op => {
   const scalarOp = new Function('a', `return ${op} a`);
 
